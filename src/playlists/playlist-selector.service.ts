@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ChannelAvailabilityService } from '../channels/channel-availability.service.js';
 import { shuffleArray } from '../common/utils/shuffle.js';
 import { PlaylistLoaderService } from './playlist-loader.service.js';
@@ -11,8 +11,9 @@ export class PlaylistSelectorService {
   private lastPlaylistUrl: string | null = null;
 
   constructor(
-    private readonly playlistLoader: PlaylistLoaderService,
-    private readonly playlistState: PlaylistStateService,
+    @Inject(PlaylistLoaderService) private readonly playlistLoader: PlaylistLoaderService,
+    @Inject(PlaylistStateService) private readonly playlistState: PlaylistStateService,
+    @Inject(ChannelAvailabilityService)
     private readonly channelAvailability: ChannelAvailabilityService,
   ) {}
 

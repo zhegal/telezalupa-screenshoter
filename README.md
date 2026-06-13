@@ -23,12 +23,22 @@ Temporary playlist sources live in `data/playlists.json`. This file is intention
 
 ## Local Run
 
+Backend dev server:
+
 ```bash
 npm install
-npm run dev
+npm run dev:backend
 ```
 
-Production build:
+Frontend dev server:
+
+```bash
+npm run dev:frontend
+```
+
+The Vite dev server proxies `/api` to the NestJS backend on `http://127.0.0.1:3000`.
+
+Production build and run:
 
 ```bash
 npm run build
@@ -38,8 +48,19 @@ npm run start:prod
 Health check:
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:3000/api/health
 ```
+
+The admin frontend is served from `/`. Backend API routes live under `/api`.
+
+## Frontend
+
+The Vue 3 admin shell lives in `frontend/`.
+
+- Vite builds static assets into `dist/public`.
+- NestJS serves the built frontend from `/` in production.
+- Vue Router uses history mode, so direct frontend routes such as `/settings` are handled by NestJS fallback serving.
+- Frontend API calls use relative `/api/...` paths.
 
 ## Docker
 

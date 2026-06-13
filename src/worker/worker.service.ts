@@ -20,13 +20,13 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
 
   constructor(
     @Inject(WORKER_CONFIG) private readonly workerConfig: WorkerConfig,
-    private readonly playlistLoader: PlaylistLoaderService,
-    private readonly playlistSelector: PlaylistSelectorService,
-    private readonly capture: FfmpegCaptureService,
-    private readonly telegram: TelegramService,
-    private readonly captionBuilder: CaptionBuilderService,
-    private readonly scheduler: SchedulerService,
-    private readonly workerState: WorkerStateService,
+    @Inject(PlaylistLoaderService) private readonly playlistLoader: PlaylistLoaderService,
+    @Inject(PlaylistSelectorService) private readonly playlistSelector: PlaylistSelectorService,
+    @Inject(FfmpegCaptureService) private readonly capture: FfmpegCaptureService,
+    @Inject(TelegramService) private readonly telegram: TelegramService,
+    @Inject(CaptionBuilderService) private readonly captionBuilder: CaptionBuilderService,
+    @Inject(SchedulerService) private readonly scheduler: SchedulerService,
+    @Inject(WorkerStateService) private readonly workerState: WorkerStateService,
   ) {}
 
   onApplicationBootstrap(): void {

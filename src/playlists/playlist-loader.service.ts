@@ -11,8 +11,8 @@ export class PlaylistLoaderService {
 
   constructor(
     @Inject(PLAYLIST_CONFIG) private readonly playlistConfig: PlaylistConfig,
-    private readonly normalizer: PlaylistNormalizerService,
-    private readonly playlistState: PlaylistStateService,
+    @Inject(PlaylistNormalizerService) private readonly normalizer: PlaylistNormalizerService,
+    @Inject(PlaylistStateService) private readonly playlistState: PlaylistStateService,
   ) {}
 
   async getPlaylistUrls(): Promise<string[]> {

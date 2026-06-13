@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { getLocalMinutes, isNowInsideInterval, parseTimeToMinutes } from '../common/utils/time.js';
 import type { Channel } from './channel.types.js';
 import { ChannelTimeService } from './channel-time.service.js';
 
 @Injectable()
 export class ChannelAvailabilityService {
-  constructor(private readonly channelTimeService: ChannelTimeService) {}
+  constructor(@Inject(ChannelTimeService) private readonly channelTimeService: ChannelTimeService) {}
 
   isAvailableNow(channel: Channel, date = new Date()): boolean {
     if (!Array.isArray(channel.available) || channel.available.length === 0) {

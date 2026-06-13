@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { escapeHtml } from '../common/utils/html.js';
 import { formatDateParts, formatTimeParts } from '../common/utils/time.js';
 import type { Channel } from '../channels/channel.types.js';
@@ -6,7 +6,7 @@ import { ChannelTimeService } from '../channels/channel-time.service.js';
 
 @Injectable()
 export class CaptionBuilderService {
-  constructor(private readonly channelTimeService: ChannelTimeService) {}
+  constructor(@Inject(ChannelTimeService) private readonly channelTimeService: ChannelTimeService) {}
 
   buildCaption(channel: Channel): string {
     const timeText = this.buildTimeLines(channel);

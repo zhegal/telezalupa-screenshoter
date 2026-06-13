@@ -1,12 +1,11 @@
-version: '3.8'
-
 services:
   screenshoter:
     build: .
     container_name: tv-screenshoter
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     expose:
       - "3000"
     networks:
