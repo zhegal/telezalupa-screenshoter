@@ -25,7 +25,8 @@
         </div>
         <div class="topbar-status">
           <span class="status-dot" />
-          <span>{{ t.backend }}</span>
+          <span>{{ auth.user?.displayName || auth.user?.username || t.backend }}</span>
+          <button class="ghost-button" type="button" @click="handleLogout">{{ t.logout }}</button>
         </div>
       </header>
 
@@ -38,6 +39,10 @@
 
 <script setup lang="ts">
 import { t } from '../services/i18n';
+import { useAuthStore } from '../stores/auth.store';
+import { router } from '../router';
+
+const auth = useAuthStore();
 
 const navItems = [
   { to: '/', label: t.dashboard, icon: '⌂' },
@@ -47,4 +52,9 @@ const navItems = [
   { to: '/channels', label: t.sections.channels, icon: '◉' },
   { to: '/settings', label: t.sections.settings, icon: '⚙' },
 ];
+
+async function handleLogout() {
+  await auth.logout();
+  await router.push('/login');
+}
 </script>

@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +17,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const appConfig = app.get<AppConfig>(APP_CONFIG);
 
+  app.use(cookieParser());
   app.setGlobalPrefix('api');
   configureFrontendServing(app.getHttpAdapter().getInstance());
 

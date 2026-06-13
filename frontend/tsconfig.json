@@ -9,7 +9,6 @@
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "baseUrl": ".",
     "types": ["vite/client"],
     "jsx": "preserve"
   },

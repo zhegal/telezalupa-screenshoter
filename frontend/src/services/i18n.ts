@@ -11,6 +11,23 @@ export const messages = {
     healthEndpoint: 'GET /api/health',
     lastCheck: 'Последняя проверка',
     refresh: 'Обновить',
+    logout: 'Выйти',
+    login: 'Вход',
+    loginAction: 'Войти',
+    loginPlaceholder: 'admin, username или email',
+    password: 'Пароль',
+    tempAdminPasswordMissing:
+      'TEMP_ADMIN_PASSWORD не задан. Укажите TEMP_ADMIN_PASSWORD в окружении, чтобы выполнить первичную настройку.',
+    temporaryAdminHint:
+      'Для первого входа используйте login admin и временный пароль TEMP_ADMIN_PASSWORD.',
+    setupTitle: 'Первичная регистрация',
+    setupDescription: 'Создайте первый реальный профиль администратора. После этого временный admin отключится.',
+    createAdmin: 'Создать администратора',
+    email: 'Email',
+    username: 'Username',
+    displayName: 'Имя',
+    telegramId: 'Telegram ID',
+    notFound: 'Страница не найдена',
     futureSections: 'Будущие разделы',
     mobileHint: 'Черновик админки готов к расширению API, авторизации и CRUD.',
     sections: {

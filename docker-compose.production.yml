@@ -3,16 +3,51 @@ services:
     build: .
     container_name: tv-screenshoter
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     env_file:
       - path: .env
         required: false
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tv_screenshoter}
+      POSTGRES_USER: ${POSTGRES_USER:-tv_screenshoter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tv_screenshoter_password}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tv_screenshoter}:${POSTGRES_PASSWORD:-tv_screenshoter_password}@postgres:5432/${POSTGRES_DB:-tv_screenshoter}?schema=public
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_DEFAULT_CHAT_ID: ${TELEGRAM_DEFAULT_CHAT_ID:-}
+      TEMP_ADMIN_PASSWORD: ${TEMP_ADMIN_PASSWORD:-}
     expose:
       - "3000"
     networks:
+      - internal
       - proxy
     logging:
       driver: "none"
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: tv-screenshoter-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tv_screenshoter}
+      POSTGRES_USER: ${POSTGRES_USER:-tv_screenshoter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tv_screenshoter_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
 networks:
+  internal:
+    internal: true
   proxy:
     external: true
+
+volumes:
+  postgres_data:
