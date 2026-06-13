@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  screenshoter:
+    build: .
+    container_name: tv-screenshoter
+    restart: unless-stopped
+    env_file:
+      - .env
+    expose:
+      - "3000"
+    networks:
+      - proxy
+    logging:
+      driver: "none"
+
+networks:
+  proxy:
+    external: true
