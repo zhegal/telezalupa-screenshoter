@@ -60,6 +60,14 @@
 
       <dl class="meta-grid metrics-grid">
         <div>
+          <dt>Channel source</dt>
+          <dd>JSON</dd>
+        </div>
+        <div>
+          <dt>Database catalog</dt>
+          <dd>available</dd>
+        </div>
+        <div>
           <dt>Cycles</dt>
           <dd>{{ system?.worker.cyclesCount ?? 0 }}</dd>
         </div>
@@ -70,10 +78,6 @@
         <div>
           <dt>Errors</dt>
           <dd>{{ system?.worker.errorCount ?? 0 }}</dd>
-        </div>
-        <div>
-          <dt>Last error</dt>
-          <dd>{{ system?.worker.lastErrorMessage || '—' }}</dd>
         </div>
       </dl>
     </section>
@@ -151,6 +155,12 @@ const sections: { to: string; title: string; description: string; icon: AppIconN
     title: t.sections.channels,
     description: t.sectionDescriptions.channels,
     icon: 'radio',
+  },
+  {
+    to: '/catalog',
+    title: t.sections.catalog,
+    description: t.sectionDescriptions.catalog,
+    icon: 'database',
   },
   {
     to: '/logs',

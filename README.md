@@ -135,6 +135,93 @@ npm run prisma:studio
 
 The first migration creates `users` and `sessions`. Sessions are stored server-side in PostgreSQL, last 30 days, and are extended on authenticated activity.
 
+The catalog migration adds future database-source entities:
+
+- `Provider`
+- `Stream`
+- `Channel`
+- `Playlist`
+- `PlaylistChannel`
+- `ChannelStream`
+- `TimezonePreset`
+- `ChannelTimezone`
+- `PlaylistTimezone`
+- `TelegramChat`
+- `CaptionTemplate`
+
+These tables are available for preparing the future database-backed worker. The current worker still reads `data/playlists.json`; JSON import, bulk stream normalization, provider matching, and switching the worker to PostgreSQL are separate future stages.
+
+## Database Catalog
+
+The admin UI includes `/catalog`, a protected database catalog section. It is intentionally separate from the current runtime views:
+
+- `/playlists` and `/channels` show the active JSON/runtime worker state.
+- `/catalog` edits PostgreSQL catalog records that are not used by the worker yet.
+
+Catalog API endpoints are authenticated and live under `/api/catalog/...`:
+
+```txt
+/api/catalog/providers
+/api/catalog/streams
+/api/catalog/channels
+/api/catalog/playlists
+/api/catalog/timezones
+/api/catalog/telegram-chats
+/api/catalog/caption-templates
+```
+
+Each catalog endpoint supports simple CRUD:
+
+```txt
+GET    /api/catalog/:entity
+GET    /api/catalog/:entity/:id
+POST   /api/catalog/:entity
+PATCH  /api/catalog/:entity/:id
+DELETE /api/catalog/:entity/:id
+```
+
+Basic list query params:
+
+```txt
+search
+enabled
+limit
+offset
+```
+
+Relationship endpoints:
+
+```txt
+GET    /api/catalog/playlists/:id/channels
+POST   /api/catalog/playlists/:id/channels
+PATCH  /api/catalog/playlists/:id/channels/:relationId
+DELETE /api/catalog/playlists/:id/channels/:relationId
+
+GET    /api/catalog/channels/:id/streams
+POST   /api/catalog/channels/:id/streams
+PATCH  /api/catalog/channels/:id/streams/:relationId
+DELETE /api/catalog/channels/:id/streams/:relationId
+
+GET    /api/catalog/channels/:id/timezones
+POST   /api/catalog/channels/:id/timezones
+PATCH  /api/catalog/channels/:id/timezones/:relationId
+DELETE /api/catalog/channels/:id/timezones/:relationId
+
+GET    /api/catalog/playlists/:id/timezones
+POST   /api/catalog/playlists/:id/timezones
+PATCH  /api/catalog/playlists/:id/timezones/:relationId
+DELETE /api/catalog/playlists/:id/timezones/:relationId
+```
+
+Current validation rules:
+
+- `Provider.urlTemplate` must contain `{streamKey}`.
+- `Stream` with `providerId` requires `streamKey`.
+- `Stream` without `providerId` requires `directUrl`.
+- Channel titles are not unique.
+- Stream URLs and stream keys are not unique.
+- Timezone presets may share the same timezone with different labels.
+
 ## Docker
 
 Local development compose publishes the app port to the host:

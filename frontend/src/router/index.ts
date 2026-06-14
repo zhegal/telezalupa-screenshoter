@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import CatalogPage from '../pages/catalog/CatalogPage.vue';
 import ChannelsPage from '../pages/ChannelsPage.vue';
 import DashboardPage from '../pages/DashboardPage.vue';
 import LoginPage from '../pages/LoginPage.vue';
@@ -72,6 +73,14 @@ export const router = createRouter({
       path: '/logs',
       name: 'logs',
       component: LogsPage,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/catalog',
+      name: 'catalog',
+      component: CatalogPage,
       meta: {
         requiresAuth: true,
       },

@@ -54,6 +54,7 @@ const navItems: { to: string; label: string; icon: AppIconName }[] = [
   { to: '/telegram', label: t.sections.telegram, icon: 'send' },
   { to: '/playlists', label: t.sections.playlists, icon: 'file-list' },
   { to: '/channels', label: t.sections.channels, icon: 'radio' },
+  { to: '/catalog', label: t.sections.catalog, icon: 'database' },
   { to: '/logs', label: t.sections.logs, icon: 'logs' },
   { to: '/settings', label: t.sections.settings, icon: 'settings' },
 ];

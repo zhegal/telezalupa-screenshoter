@@ -350,7 +350,7 @@ button {
 
 .section-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 
@@ -503,6 +503,129 @@ button {
   color: #eef6f3;
   background: rgba(255, 255, 255, 0.055);
   font: inherit;
+}
+
+.catalog-warning {
+  margin: 16px 0 0;
+  color: #ffe4a3;
+  line-height: 1.55;
+}
+
+.catalog-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.ghost-button.active {
+  border-color: rgba(75, 215, 167, 0.45);
+  color: #06100d;
+  background: #4bd7a7;
+}
+
+.ghost-button.danger {
+  color: #ffd7d7;
+}
+
+.catalog-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.7fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.catalog-list {
+  min-width: 0;
+}
+
+.catalog-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.catalog-form label,
+.relation-form {
+  display: grid;
+  gap: 8px;
+  color: #9ab1aa;
+  font-size: 13px;
+}
+
+.catalog-form input,
+.catalog-form textarea,
+.catalog-form select,
+.inline-input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #eef6f3;
+  background: rgba(255, 255, 255, 0.055);
+  font: inherit;
+}
+
+.catalog-form textarea {
+  min-height: 96px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.toggle-line {
+  display: flex !important;
+  grid-auto-flow: column;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.toggle-line input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.runtime-table tr.selected td {
+  background: rgba(75, 215, 167, 0.06);
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.relation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.relation-block {
+  min-width: 0;
+}
+
+.relation-block h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.relation-form {
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  align-items: end;
+}
+
+.compact-table {
+  min-width: 560px;
+}
+
+.inline-input {
+  width: 90px;
+  min-height: 32px;
 }
 
 .filter-input.compact {
@@ -685,6 +808,12 @@ button {
   }
 
   .setup-form {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-layout,
+  .relation-grid,
+  .relation-form {
     grid-template-columns: 1fr;
   }
 }

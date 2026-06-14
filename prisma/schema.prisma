@@ -39,3 +39,177 @@ model Session {
   @@index([expiresAt])
   @@map("sessions")
 }
+
+model Provider {
+  id          String   @id @default(cuid())
+  title       String
+  urlTemplate String
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  streams     Stream[]
+
+  @@index([enabled])
+  @@index([title])
+  @@map("providers")
+}
+
+model Stream {
+  id             String          @id @default(cuid())
+  title          String
+  providerId     String?
+  provider       Provider?       @relation(fields: [providerId], references: [id])
+  streamKey      String?
+  directUrl      String?
+  userAgent      String?
+  enabled        Boolean         @default(true)
+  priority       Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  channelStreams ChannelStream[]
+
+  @@index([providerId])
+  @@index([enabled])
+  @@index([title])
+  @@map("streams")
+}
+
+model Channel {
+  id                  String            @id @default(cuid())
+  title               String
+  description         String?
+  enabled             Boolean           @default(true)
+  defaultDelaySeconds Int?
+  defaultScale        String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  playlistChannels    PlaylistChannel[]
+  channelStreams      ChannelStream[]
+  channelTimezones    ChannelTimezone[]
+
+  @@index([enabled])
+  @@index([title])
+  @@map("channels")
+}
+
+model Playlist {
+  id                String             @id @default(cuid())
+  title             String
+  enabled           Boolean            @default(true)
+  priority          Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  playlistChannels  PlaylistChannel[]
+  playlistTimezones PlaylistTimezone[]
+
+  @@index([enabled])
+  @@index([title])
+  @@map("playlists")
+}
+
+model PlaylistChannel {
+  id         String   @id @default(cuid())
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Restrict)
+  channelId  String
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  enabled    Boolean  @default(true)
+  priority   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([playlistId])
+  @@index([channelId])
+  @@index([enabled])
+  @@map("playlist_channels")
+}
+
+model ChannelStream {
+  id        String   @id @default(cuid())
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  streamId  String
+  stream    Stream   @relation(fields: [streamId], references: [id], onDelete: Restrict)
+  enabled   Boolean  @default(true)
+  priority  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([channelId])
+  @@index([streamId])
+  @@index([enabled])
+  @@map("channel_streams")
+}
+
+model TimezonePreset {
+  id                String             @id @default(cuid())
+  timezone          String
+  label             String
+  enabled           Boolean            @default(true)
+  priority          Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  channelTimezones  ChannelTimezone[]
+  playlistTimezones PlaylistTimezone[]
+
+  @@index([enabled])
+  @@index([timezone])
+  @@index([label])
+  @@map("timezone_presets")
+}
+
+model ChannelTimezone {
+  id               String         @id @default(cuid())
+  channelId        String
+  channel          Channel        @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  timezonePresetId String
+  timezonePreset   TimezonePreset @relation(fields: [timezonePresetId], references: [id], onDelete: Restrict)
+  priority         Int            @default(0)
+
+  @@index([channelId])
+  @@index([timezonePresetId])
+  @@map("channel_timezones")
+}
+
+model PlaylistTimezone {
+  id               String         @id @default(cuid())
+  playlistId       String
+  playlist         Playlist       @relation(fields: [playlistId], references: [id], onDelete: Restrict)
+  timezonePresetId String
+  timezonePreset   TimezonePreset @relation(fields: [timezonePresetId], references: [id], onDelete: Restrict)
+  priority         Int            @default(0)
+
+  @@index([playlistId])
+  @@index([timezonePresetId])
+  @@map("playlist_timezones")
+}
+
+model TelegramChat {
+  id        String   @id @default(cuid())
+  title     String
+  chatId    String
+  enabled   Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([isDefault])
+  @@index([title])
+  @@map("telegram_chats")
+}
+
+model CaptionTemplate {
+  id        String   @id @default(cuid())
+  title     String
+  template  String
+  enabled   Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([isDefault])
+  @@index([title])
+  @@map("caption_templates")
+}

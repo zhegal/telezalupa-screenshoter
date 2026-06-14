@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module.js';
+import { CatalogModule } from './catalog/catalog.module.js';
 import { ConfigModule } from './config/config.module.js';
 import { HealthModule } from './health/health.module.js';
 import { LogsModule } from './logs/logs.module.js';
@@ -14,6 +15,7 @@ import { WorkerModule } from './worker/worker.module.js';
     PrismaModule,
     HealthModule,
     AuthModule,
+    CatalogModule,
     LogsModule,
     WorkerModule,
     RuntimeModule,

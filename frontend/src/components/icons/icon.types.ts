@@ -1,6 +1,7 @@
 export type AppIconName =
   | 'activity'
   | 'dashboard'
+  | 'database'
   | 'file-list'
   | 'logs'
   | 'play'

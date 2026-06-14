@@ -39,6 +39,9 @@ const iconMap: Record<
   dashboard: {
     paths: ['M3 13h8V3H3z', 'M13 21h8V11h-8z', 'M13 3v6h8V3z', 'M3 21h8v-6H3z'],
   },
+  database: {
+    paths: ['M4 6c0-2 4-4 8-4s8 2 8 4-4 4-8 4-8-2-8-4Z', 'M4 6v6c0 2 4 4 8 4s8-2 8-4V6', 'M4 12v6c0 2 4 4 8 4s8-2 8-4v-6'],
+  },
   'file-list': {
     paths: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6'],
     lines: [
