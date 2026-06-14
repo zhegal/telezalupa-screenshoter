@@ -1,6 +1,7 @@
 export interface SendPhotoResult {
   ok: boolean;
   messageId?: number;
+  errorMessage?: string;
 }
 
 export interface TelegramApiResponse<T = unknown> {

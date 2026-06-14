@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import FormData from 'form-data';
 import { TELEGRAM_CONFIG, type TelegramConfig } from '../config/telegram.config.js';
+import { RuntimeLogService } from '../logs/runtime-log.service.js';
 import type {
   SendPhotoResult,
   TelegramApiResponse,
@@ -12,12 +13,16 @@ import type {
 export class TelegramService {
   private readonly logger = new Logger(TelegramService.name);
 
-  constructor(@Inject(TELEGRAM_CONFIG) private readonly telegramConfig: TelegramConfig) {}
+  constructor(
+    @Inject(TELEGRAM_CONFIG) private readonly telegramConfig: TelegramConfig,
+    @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
+  ) {}
 
   async sendPhoto(photoBuffer: Buffer, caption: string, chatId?: string): Promise<SendPhotoResult> {
     if (!this.telegramConfig.botToken || !(chatId || this.telegramConfig.defaultChatId)) {
       this.logger.error('Telegram bot token or default chat id is not configured');
-      return { ok: false };
+      this.logs.add('error', 'telegram', 'Telegram bot token or default chat id is not configured');
+      return { ok: false, errorMessage: 'Telegram bot token or default chat id is not configured' };
     }
 
     const form = new FormData();
@@ -47,13 +52,18 @@ export class TelegramService {
         return { ok: true, messageId };
       }
 
-      this.logger.error(
-        `TG Status: ${response.status} Body: ${JSON.stringify(response.data).slice(0, 500)}`,
-      );
-      return { ok: false };
+      const errorMessage = `TG Status: ${response.status} Body: ${JSON.stringify(response.data).slice(0, 500)}`;
+      this.logger.error(errorMessage);
+      this.logs.add('error', 'telegram', 'Telegram API returned an error', {
+        status: response.status,
+        body: response.data,
+      });
+      return { ok: false, errorMessage };
     } catch (err) {
-      this.logger.error(`Send failed: ${err instanceof Error ? err.message : String(err)}`);
-      return { ok: false };
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Send failed: ${errorMessage}`);
+      this.logs.add('error', 'telegram', 'Telegram send failed', { error: errorMessage });
+      return { ok: false, errorMessage };
     }
   }
 }

@@ -5,6 +5,8 @@ export interface PlaylistState {
   channels: Channel[];
   channelQueue: Channel[];
   loading: boolean;
+  lastLoadedAt?: string;
+  lastLoadError?: string | null;
 }
 
 export interface SelectedChannel {

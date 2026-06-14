@@ -15,4 +15,8 @@ export class SchedulerService {
       this.timer = null;
     }
   }
+
+  hasScheduledRun(): boolean {
+    return Boolean(this.timer);
+  }
 }

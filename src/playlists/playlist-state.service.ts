@@ -18,6 +18,14 @@ export class PlaylistStateService {
     return this.states.get(url);
   }
 
+  getAllPlaylistStates(): PlaylistState[] {
+    return Array.from(this.states.values());
+  }
+
+  clear(): void {
+    this.states.clear();
+  }
+
   resetQueues(): void {
     for (const state of this.states.values()) {
       state.channelQueue = [];

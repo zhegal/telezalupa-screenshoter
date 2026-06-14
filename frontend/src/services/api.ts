@@ -38,20 +38,114 @@ export interface SetupPayload {
   telegramId?: string;
 }
 
-async function apiFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
+export interface WorkerStatus {
+  running: boolean;
+  busy: boolean;
+  lastStartedAt: string | null;
+  lastStoppedAt: string | null;
+  lastRestartedAt: string | null;
+  lastCycleStartedAt: string | null;
+  lastCycleFinishedAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastErrorMessage: string | null;
+  nextRunAt: string | null;
+  currentPlaylistUrl: string | null;
+  currentChannelTitle: string | null;
+  lastPlaylistUrl: string | null;
+  lastChannelTitle: string | null;
+  lastTelegramSentAt: string | null;
+  lastTelegramMessageId: number | null;
+  cyclesCount: number;
+  successCount: number;
+  errorCount: number;
+  source: 'json';
+}
+
+export interface WorkerActionResponse {
+  status: 'started' | 'stopped' | 'busy' | 'completed' | 'ignored';
+  worker: WorkerStatus;
+}
+
+export interface SystemStatus {
+  status: string;
+  source: 'json';
+  uptimeSeconds: number;
+  nodeVersion: string;
+  now: string;
+  worker: WorkerStatus;
+}
+
+export interface RuntimePlaylist {
+  url: string;
+  loaded: boolean;
+  loading: boolean;
+  channelsCount: number;
+  availableChannelsCount: number;
+  queueLeft: number;
+  lastLoadedAt: string | null;
+  lastLoadError: string | null;
+}
+
+export interface RuntimeChannel {
+  playlistUrl: string;
+  title: string;
+  description: string;
+  url: string;
+  availableNow: boolean;
+  scale: string;
+  delay: number | null;
+  userAgent: string;
+  timezones: [string, string][] | null;
+  available: { start: string; end: string }[] | null;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastErrorMessage: string | null;
+  consecutiveFailures: number;
+}
+
+export interface RuntimeListResponse<T> {
+  source: 'json';
+  items: T[];
+}
+
+export interface RuntimeLogEntry {
+  id: string;
+  level: 'info' | 'warn' | 'error';
+  scope: 'worker' | 'playlist' | 'channel' | 'ffmpeg' | 'telegram' | 'auth' | 'system';
+  message: string;
+  context?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface LogsResponse {
+  items: RuntimeLogEntry[];
+}
+
+interface ApiFetchOptions extends RequestInit {
+  redirectOnUnauthorized?: boolean;
+}
+
+async function apiFetch<T>(url: string, init: ApiFetchOptions = {}): Promise<T> {
+  const { redirectOnUnauthorized = true, ...requestInit } = init;
   const response = await fetch(url, {
     credentials: 'include',
-    ...init,
+    ...requestInit,
     headers: {
       Accept: 'application/json',
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-      ...init.headers,
+      ...(requestInit.body ? { 'Content-Type': 'application/json' } : {}),
+      ...requestInit.headers,
     },
   });
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message = body?.message || `Request failed: ${response.status}`;
+
+    if (response.status === 401 && redirectOnUnauthorized && !['/login', '/setup'].includes(window.location.pathname)) {
+      window.location.assign('/login');
+    }
 
     throw new Error(Array.isArray(message) ? message.join(', ') : message);
   }
@@ -64,18 +158,19 @@ export async function getHealth(): Promise<HealthResponse> {
 }
 
 export async function getBootstrapStatus(): Promise<BootstrapStatus> {
-  return apiFetch<BootstrapStatus>('/api/auth/bootstrap-status');
+  return apiFetch<BootstrapStatus>('/api/auth/bootstrap-status', { redirectOnUnauthorized: false });
 }
 
 export async function login(payload: LoginPayload): Promise<AuthStateResponse> {
   return apiFetch<AuthStateResponse>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),
+    redirectOnUnauthorized: false,
   });
 }
 
 export async function getMe(): Promise<AuthStateResponse> {
-  return apiFetch<AuthStateResponse>('/api/auth/me');
+  return apiFetch<AuthStateResponse>('/api/auth/me', { redirectOnUnauthorized: false });
 }
 
 export async function logout(): Promise<{ ok: boolean }> {
@@ -88,5 +183,54 @@ export async function setupFirstUser(payload: SetupPayload): Promise<AuthStateRe
   return apiFetch<AuthStateResponse>('/api/auth/setup', {
     method: 'POST',
     body: JSON.stringify(payload),
+    redirectOnUnauthorized: false,
   });
+}
+
+export async function getSystemStatus(): Promise<SystemStatus> {
+  return apiFetch<SystemStatus>('/api/system/status');
+}
+
+export async function getWorkerStatus(): Promise<WorkerStatus> {
+  return apiFetch<WorkerStatus>('/api/worker/status');
+}
+
+export async function startWorker(): Promise<WorkerActionResponse> {
+  return apiFetch<WorkerActionResponse>('/api/worker/start', { method: 'POST' });
+}
+
+export async function stopWorker(): Promise<WorkerActionResponse> {
+  return apiFetch<WorkerActionResponse>('/api/worker/stop', { method: 'POST' });
+}
+
+export async function restartWorker(): Promise<WorkerActionResponse> {
+  return apiFetch<WorkerActionResponse>('/api/worker/restart', { method: 'POST' });
+}
+
+export async function runWorkerOnce(): Promise<WorkerActionResponse> {
+  return apiFetch<WorkerActionResponse>('/api/worker/run-once', { method: 'POST' });
+}
+
+export async function getRuntimePlaylists(): Promise<RuntimeListResponse<RuntimePlaylist>> {
+  return apiFetch<RuntimeListResponse<RuntimePlaylist>>('/api/runtime/playlists');
+}
+
+export async function getRuntimeChannels(): Promise<RuntimeListResponse<RuntimeChannel>> {
+  return apiFetch<RuntimeListResponse<RuntimeChannel>>('/api/runtime/channels');
+}
+
+export async function getRecentLogs(params: { scope?: RuntimeLogEntry['scope']; limit?: number } = {}): Promise<LogsResponse> {
+  const query = new URLSearchParams();
+
+  if (params.scope) {
+    query.set('scope', params.scope);
+  }
+
+  if (params.limit) {
+    query.set('limit', String(params.limit));
+  }
+
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+
+  return apiFetch<LogsResponse>(`/api/logs/recent${suffix}`);
 }

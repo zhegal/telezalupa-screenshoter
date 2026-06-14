@@ -1,8 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import ChannelsPage from '../pages/ChannelsPage.vue';
 import DashboardPage from '../pages/DashboardPage.vue';
 import LoginPage from '../pages/LoginPage.vue';
+import LogsPage from '../pages/LogsPage.vue';
 import NotFoundPage from '../pages/NotFoundPage.vue';
+import PlaylistsPage from '../pages/PlaylistsPage.vue';
 import SetupPage from '../pages/SetupPage.vue';
+import WorkerPage from '../pages/WorkerPage.vue';
 import { useAuthStore } from '../stores/auth.store';
 
 export const router = createRouter({
@@ -35,7 +39,7 @@ export const router = createRouter({
     {
       path: '/worker',
       name: 'worker',
-      component: DashboardPage,
+      component: WorkerPage,
       meta: {
         requiresAuth: true,
       },
@@ -51,7 +55,7 @@ export const router = createRouter({
     {
       path: '/playlists',
       name: 'playlists',
-      component: DashboardPage,
+      component: PlaylistsPage,
       meta: {
         requiresAuth: true,
       },
@@ -59,7 +63,15 @@ export const router = createRouter({
     {
       path: '/channels',
       name: 'channels',
-      component: DashboardPage,
+      component: ChannelsPage,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/logs',
+      name: 'logs',
+      component: LogsPage,
       meta: {
         requiresAuth: true,
       },

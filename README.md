@@ -36,6 +36,8 @@ After logging in as the temporary admin, open `/setup` and create the first real
 
 `/api/health` remains public and does not require authentication.
 
+All runtime/status endpoints below require the HttpOnly auth session cookie.
+
 ## Local Run
 
 Backend dev server:
@@ -71,6 +73,44 @@ curl http://localhost:3000/api/health
 ```
 
 The admin frontend is served from `/`. Backend API routes live under `/api`.
+
+## Runtime API
+
+The worker still uses `data/playlists.json` and loaded JSON playlist cache as the source of playlists and channels. PostgreSQL currently stores auth/session data only; moving playlist/channel management to PostgreSQL is a separate future stage.
+
+Public:
+
+```txt
+GET /api/health
+```
+
+Authenticated:
+
+```txt
+GET  /api/system/status
+GET  /api/worker/status
+POST /api/worker/start
+POST /api/worker/stop
+POST /api/worker/restart
+POST /api/worker/run-once
+GET  /api/runtime/playlists
+GET  /api/runtime/channels
+GET  /api/logs/recent
+```
+
+Worker controls:
+
+- `start` starts the in-process worker if it is stopped and returns the current status if it is already running.
+- `stop` cancels future scheduled cycles without killing an active ffmpeg/Telegram operation.
+- `restart` stops scheduling, clears safe runtime queues/status cache, reloads the current JSON playlist sources, and starts the worker again.
+- `run-once` runs one manual cycle with the same channel selection logic. If a cycle is already active, it returns `busy`.
+
+Runtime views:
+
+- `/playlists` shows read-only runtime playlist state from `data/playlists.json` and in-memory cache.
+- `/channels` shows read-only channels from loaded JSON playlists, with search and filters for availability/errors.
+- `/worker` shows detailed worker status and worker logs.
+- `/logs` shows the in-memory runtime log ring buffer for the last 48 hours.
 
 ## Frontend
 

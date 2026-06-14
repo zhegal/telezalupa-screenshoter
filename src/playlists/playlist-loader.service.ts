@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { readFile } from 'node:fs/promises';
 import { PLAYLIST_CONFIG, type PlaylistConfig } from '../config/playlist.config.js';
+import { RuntimeLogService } from '../logs/runtime-log.service.js';
 import { PlaylistNormalizerService } from './playlist-normalizer.service.js';
 import { PlaylistStateService } from './playlist-state.service.js';
 
@@ -13,6 +14,7 @@ export class PlaylistLoaderService {
     @Inject(PLAYLIST_CONFIG) private readonly playlistConfig: PlaylistConfig,
     @Inject(PlaylistNormalizerService) private readonly normalizer: PlaylistNormalizerService,
     @Inject(PlaylistStateService) private readonly playlistState: PlaylistStateService,
+    @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
   ) {}
 
   async getPlaylistUrls(): Promise<string[]> {
@@ -22,12 +24,20 @@ export class PlaylistLoaderService {
 
       if (!Array.isArray(parsed)) {
         this.logger.error(`Playlist config must be an array: ${this.playlistConfig.filePath}`);
+        this.logs.add('error', 'playlist', 'Playlist config must be an array', {
+          filePath: this.playlistConfig.filePath,
+        });
         return [];
       }
 
       return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
     } catch (err) {
-      this.logger.error(`Playlist config load failed: ${this.getErrorMessage(err)}`);
+      const message = this.getErrorMessage(err);
+      this.logger.error(`Playlist config load failed: ${message}`);
+      this.logs.add('error', 'playlist', 'Playlist config load failed', {
+        filePath: this.playlistConfig.filePath,
+        error: message,
+      });
       return [];
     }
   }
@@ -47,6 +57,7 @@ export class PlaylistLoaderService {
 
     try {
       this.logger.log(`Loading playlist: ${url}`);
+      this.logs.add('info', 'playlist', 'Loading playlist', { url });
 
       const response = await axios.get<string>(url, {
         timeout: this.playlistConfig.requestTimeoutMs,
@@ -57,6 +68,11 @@ export class PlaylistLoaderService {
 
       if (response.status !== 200) {
         this.logger.error(`Playlist HTTP status ${response.status}: ${url}`);
+        state.lastLoadError = `HTTP status ${response.status}`;
+        this.logs.add('error', 'playlist', 'Playlist HTTP status error', {
+          url,
+          status: response.status,
+        });
         return state.channels.length > 0;
       }
 
@@ -64,17 +80,31 @@ export class PlaylistLoaderService {
 
       if (channels.length === 0) {
         this.logger.error(`Playlist is empty or invalid: ${url}`);
+        state.lastLoadError = 'Playlist is empty or invalid';
+        this.logs.add('error', 'playlist', 'Playlist is empty or invalid', { url });
         return state.channels.length > 0;
       }
 
       state.channels = channels;
       state.channelQueue = [];
+      state.lastLoadedAt = new Date().toISOString();
+      state.lastLoadError = null;
 
       this.logger.log(`Playlist loaded: ${channels.length} channels from ${url}`);
+      this.logs.add('info', 'playlist', 'Playlist loaded', {
+        url,
+        channelsCount: channels.length,
+      });
 
       return true;
     } catch (err) {
-      this.logger.error(`Playlist load failed: ${url}: ${this.getErrorMessage(err)}`);
+      const message = this.getErrorMessage(err);
+      state.lastLoadError = message;
+      this.logger.error(`Playlist load failed: ${url}: ${message}`);
+      this.logs.add('error', 'playlist', 'Playlist load failed', {
+        url,
+        error: message,
+      });
       return state.channels.length > 0;
     } finally {
       state.loading = false;

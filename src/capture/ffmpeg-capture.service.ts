@@ -3,6 +3,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import { FFMPEG_CONFIG, type FfmpegConfig } from '../config/ffmpeg.config.js';
 import { PLAYLIST_CONFIG, type PlaylistConfig } from '../config/playlist.config.js';
 import type { Channel } from '../channels/channel.types.js';
+import { RuntimeLogService } from '../logs/runtime-log.service.js';
 
 @Injectable()
 export class FfmpegCaptureService {
@@ -11,6 +12,7 @@ export class FfmpegCaptureService {
   constructor(
     @Inject(FFMPEG_CONFIG) private readonly ffmpegConfig: FfmpegConfig,
     @Inject(PLAYLIST_CONFIG) private readonly playlistConfig: PlaylistConfig,
+    @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
   ) {}
 
   async captureScreenshot(channel: Channel): Promise<Buffer | null> {
@@ -65,13 +67,25 @@ export class FfmpegCaptureService {
 
         if (reason === 'timeout') {
           this.logger.error(`Killing stalled process for: ${channel.title}`);
+          this.logs.add('error', 'ffmpeg', 'Killing stalled ffmpeg process', {
+            channelTitle: channel.title,
+            channelUrl: channel.url,
+          });
           try {
             command.kill('SIGKILL');
           } catch {}
         } else if (reason === 'ffmpeg_error') {
           this.logger.error(`${channel.title}: ${errMsg || 'ffmpeg error'}`);
+          this.logs.add('error', 'ffmpeg', errMsg || 'ffmpeg error', {
+            channelTitle: channel.title,
+            channelUrl: channel.url,
+          });
         } else if (reason === 'stream_error') {
           this.logger.error(`${channel.title}: ${errMsg || 'stream error'}`);
+          this.logs.add('error', 'ffmpeg', errMsg || 'stream error', {
+            channelTitle: channel.title,
+            channelUrl: channel.url,
+          });
           try {
             command.kill('SIGKILL');
           } catch {}
@@ -106,6 +120,10 @@ export class FfmpegCaptureService {
 
         if (chunks.length === 0) {
           this.logger.log(`No data from ${channel.title}`);
+          this.logs.add('warn', 'ffmpeg', 'No data from stream', {
+            channelTitle: channel.title,
+            channelUrl: channel.url,
+          });
           resolve(null);
           return;
         }
