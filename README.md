@@ -222,6 +222,81 @@ Current validation rules:
 - Stream URLs and stream keys are not unique.
 - Timezone presets may share the same timezone with different labels.
 
+## Bulk Catalog Tools
+
+The `/catalog` UI includes bulk tools for preparing the future database catalog. These tools do not import JSON and do not affect the active worker source. The worker still uses `data/playlists.json`.
+
+Bulk playlist-channel operations:
+
+```txt
+POST /api/catalog/playlists/:id/channels/bulk-attach
+POST /api/catalog/playlists/:id/channels/bulk-detach
+```
+
+Payload:
+
+```json
+{
+  "channelIds": ["id1", "id2"]
+}
+```
+
+Bulk channel-stream operations:
+
+```txt
+POST /api/catalog/channels/:id/streams/bulk-attach
+POST /api/catalog/channels/:id/streams/bulk-detach
+```
+
+Payload:
+
+```json
+{
+  "streamIds": ["id1", "id2"]
+}
+```
+
+Bulk stream tools:
+
+```txt
+POST /api/catalog/streams/bulk-provider-assign
+POST /api/catalog/streams/bulk-enable
+POST /api/catalog/streams/bulk-disable
+POST /api/catalog/streams/bulk-transform-preview
+POST /api/catalog/streams/bulk-transform-apply
+```
+
+Provider assignment keeps existing `streamKey` values unchanged. Enable/disable only toggles `enabled`.
+
+Transform preview payload:
+
+```json
+{
+  "streamIds": ["id1", "id2"],
+  "providerId": "provider-id",
+  "prefixToStrip": "https://test.zhegal.com.ua/kstv/",
+  "suffixToStrip": "/playlist.m3u8"
+}
+```
+
+Preview does not save data. Apply updates only valid preview rows:
+
+```txt
+directUrl -> null
+providerId -> selected Provider
+streamKey -> computed value
+```
+
+Bulk operations return statistics such as `requested`, `created`, `updated`, `deleted`, `skipped`, and `failed`.
+
+Important constraints:
+
+- JSON Import Wizard is not implemented yet.
+- Provider guessing is not implemented.
+- Providers are not auto-created.
+- URLs are transformed only with manually supplied prefix/suffix.
+- The worker still uses `data/playlists.json`.
+
 ## Docker
 
 Local development compose publishes the app port to the host:

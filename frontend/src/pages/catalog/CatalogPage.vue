@@ -57,6 +57,7 @@
             <thead>
               <tr>
                 <th>Title</th>
+                <th v-if="activeEntity === 'streams'">Bulk</th>
                 <th>Enabled</th>
                 <th>Details</th>
                 <th></th>
@@ -67,6 +68,13 @@
                 <td>
                   <strong>{{ displayTitle(item) }}</strong>
                   <small>{{ item.id }}</small>
+                </td>
+                <td v-if="activeEntity === 'streams'">
+                  <input
+                    :checked="selectedStreamIds.has(item.id)"
+                    type="checkbox"
+                    @change="toggleStreamSelection(item.id, ($event.target as HTMLInputElement).checked)"
+                  />
                 </td>
                 <td>
                   <span class="pill" :class="item.enabled === false ? 'level-warn' : 'level-info'">
@@ -153,6 +161,32 @@
       :timezones="timezones"
       @changed="loadRelationsAndOptions"
     />
+
+    <BulkRelationManager
+      v-if="selected && activeEntity === 'playlists'"
+      owner-type="playlist"
+      :owner="selected"
+      :options="channels"
+      @changed="loadRelationsAndOptions"
+    />
+
+    <BulkRelationManager
+      v-if="selected && activeEntity === 'channels'"
+      owner-type="channel"
+      :owner="selected"
+      :options="streams"
+      @changed="loadRelationsAndOptions"
+    />
+
+    <StreamBulkTools
+      v-if="activeEntity === 'streams'"
+      :streams="items"
+      :providers="providers"
+      :selected-ids="Array.from(selectedStreamIds)"
+      @select-visible="selectVisibleStreams"
+      @clear-selection="clearStreamSelection"
+      @changed="handleStreamBulkChanged"
+    />
   </AdminLayout>
 </template>
 
@@ -167,7 +201,9 @@ import {
   type CatalogEntity,
   type CatalogItem,
 } from '../../services/api';
+import BulkRelationManager from './BulkRelationManager.vue';
 import CatalogRelations from './CatalogRelations.vue';
+import StreamBulkTools from './StreamBulkTools.vue';
 
 type FieldType = 'text' | 'number' | 'textarea' | 'checkbox' | 'provider';
 
@@ -273,6 +309,7 @@ const saving = ref(false);
 const error = ref<string | null>(null);
 const editingId = ref<string | null>(null);
 const form = reactive<Record<string, string | boolean>>({});
+const selectedStreamIds = reactive(new Set<string>());
 
 const currentConfig = computed(() => entityConfigs.find((item) => item.entity === activeEntity.value) || entityConfigs[0]);
 
@@ -286,6 +323,7 @@ async function selectEntity(entity: CatalogEntity) {
   enabledFilter.value = '';
   selected.value = null;
   startCreate();
+  clearStreamSelection();
   await loadItems();
 }
 
@@ -443,6 +481,29 @@ function stringFormValue(name: string) {
 
 function setStringFormValue(name: string, value: string) {
   form[name] = value;
+}
+
+function toggleStreamSelection(id: string, checked: boolean) {
+  if (checked) {
+    selectedStreamIds.add(id);
+  } else {
+    selectedStreamIds.delete(id);
+  }
+}
+
+function selectVisibleStreams() {
+  for (const item of items.value) {
+    selectedStreamIds.add(item.id);
+  }
+}
+
+function clearStreamSelection() {
+  selectedStreamIds.clear();
+}
+
+async function handleStreamBulkChanged() {
+  clearStreamSelection();
+  await Promise.all([loadItems(), loadRelationsAndOptions()]);
 }
 
 function detailText(item: CatalogItem) {

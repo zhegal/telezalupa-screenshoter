@@ -144,6 +144,24 @@ export interface CatalogListResponse<T = CatalogItem> {
   items: T[];
 }
 
+export interface BulkOperationStats {
+  requested: number;
+  created?: number;
+  deleted?: number;
+  updated?: number;
+  skipped: number;
+  failed: number;
+}
+
+export interface StreamTransformPreviewItem {
+  streamId: string;
+  directUrl: string | null;
+  streamKey: string | null;
+  providerId: string | null;
+  valid: boolean;
+  error?: string;
+}
+
 interface ApiFetchOptions extends RequestInit {
   redirectOnUnauthorized?: boolean;
 }
@@ -326,5 +344,89 @@ export async function updateCatalogRelation<T = CatalogItem>(
 export async function deleteCatalogRelation(path: string, relationId: string): Promise<{ ok: boolean }> {
   return apiFetch<{ ok: boolean }>(`/api/catalog/${path}/${relationId}`, {
     method: 'DELETE',
+  });
+}
+
+export async function bulkAttachPlaylistChannels(
+  playlistId: string,
+  channelIds: string[],
+): Promise<BulkOperationStats> {
+  return apiFetch<BulkOperationStats>(`/api/catalog/playlists/${playlistId}/channels/bulk-attach`, {
+    method: 'POST',
+    body: JSON.stringify({ channelIds }),
+  });
+}
+
+export async function bulkDetachPlaylistChannels(
+  playlistId: string,
+  channelIds: string[],
+): Promise<BulkOperationStats> {
+  return apiFetch<BulkOperationStats>(`/api/catalog/playlists/${playlistId}/channels/bulk-detach`, {
+    method: 'POST',
+    body: JSON.stringify({ channelIds }),
+  });
+}
+
+export async function bulkAttachChannelStreams(
+  channelId: string,
+  streamIds: string[],
+): Promise<BulkOperationStats> {
+  return apiFetch<BulkOperationStats>(`/api/catalog/channels/${channelId}/streams/bulk-attach`, {
+    method: 'POST',
+    body: JSON.stringify({ streamIds }),
+  });
+}
+
+export async function bulkDetachChannelStreams(
+  channelId: string,
+  streamIds: string[],
+): Promise<BulkOperationStats> {
+  return apiFetch<BulkOperationStats>(`/api/catalog/channels/${channelId}/streams/bulk-detach`, {
+    method: 'POST',
+    body: JSON.stringify({ streamIds }),
+  });
+}
+
+export async function bulkAssignStreamProvider(
+  streamIds: string[],
+  providerId: string,
+): Promise<BulkOperationStats> {
+  return apiFetch<BulkOperationStats>('/api/catalog/streams/bulk-provider-assign', {
+    method: 'POST',
+    body: JSON.stringify({ streamIds, providerId }),
+  });
+}
+
+export async function bulkSetStreamsEnabled(
+  streamIds: string[],
+  enabled: boolean,
+): Promise<BulkOperationStats> {
+  return apiFetch<BulkOperationStats>(`/api/catalog/streams/${enabled ? 'bulk-enable' : 'bulk-disable'}`, {
+    method: 'POST',
+    body: JSON.stringify({ streamIds }),
+  });
+}
+
+export async function previewStreamTransform(payload: {
+  streamIds: string[];
+  providerId: string;
+  prefixToStrip: string;
+  suffixToStrip: string;
+}): Promise<StreamTransformPreviewItem[]> {
+  return apiFetch<StreamTransformPreviewItem[]>('/api/catalog/streams/bulk-transform-preview', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function applyStreamTransform(payload: {
+  streamIds: string[];
+  providerId: string;
+  prefixToStrip: string;
+  suffixToStrip: string;
+}): Promise<BulkOperationStats> {
+  return apiFetch<BulkOperationStats>('/api/catalog/streams/bulk-transform-apply', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }

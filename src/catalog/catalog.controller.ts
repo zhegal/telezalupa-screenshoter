@@ -13,12 +13,43 @@ import {
 } from '@nestjs/common';
 import { SessionAuthGuard } from '../common/guards/session-auth.guard.js';
 import { CatalogService } from './catalog.service.js';
-import type { CatalogEntity, CatalogListQuery, CatalogRelationBody } from './catalog.types.js';
+import type {
+  BulkRelationBody,
+  BulkStreamsBody,
+  CatalogEntity,
+  CatalogListQuery,
+  CatalogRelationBody,
+} from './catalog.types.js';
 
 @Controller('catalog')
 @UseGuards(SessionAuthGuard)
 export class CatalogController {
   constructor(@Inject(CatalogService) private readonly catalog: CatalogService) {}
+
+  @Post('streams/bulk-transform-preview')
+  bulkTransformPreview(@Body() body: BulkStreamsBody) {
+    return this.catalog.bulkTransformPreview(body);
+  }
+
+  @Post('streams/bulk-transform-apply')
+  bulkTransformApply(@Body() body: BulkStreamsBody) {
+    return this.catalog.bulkTransformApply(body);
+  }
+
+  @Post('streams/bulk-provider-assign')
+  bulkProviderAssign(@Body() body: BulkStreamsBody) {
+    return this.catalog.bulkProviderAssign(body);
+  }
+
+  @Post('streams/bulk-enable')
+  bulkEnableStreams(@Body() body: BulkStreamsBody) {
+    return this.catalog.bulkSetStreamsEnabled(body, true);
+  }
+
+  @Post('streams/bulk-disable')
+  bulkDisableStreams(@Body() body: BulkStreamsBody) {
+    return this.catalog.bulkSetStreamsEnabled(body, false);
+  }
 
   @Get(':entity')
   list(@Param('entity') entity: CatalogEntity, @Query() query: CatalogListQuery) {
@@ -66,6 +97,16 @@ export class CatalogPlaylistChannelsController {
     return this.catalog.addPlaylistChannel(playlistId, body);
   }
 
+  @Post('bulk-attach')
+  bulkAttach(@Param('playlistId') playlistId: string, @Body() body: BulkRelationBody) {
+    return this.catalog.bulkAttachPlaylistChannels(playlistId, body);
+  }
+
+  @Post('bulk-detach')
+  bulkDetach(@Param('playlistId') playlistId: string, @Body() body: BulkRelationBody) {
+    return this.catalog.bulkDetachPlaylistChannels(playlistId, body);
+  }
+
   @Patch(':relationId')
   update(
     @Param('playlistId') playlistId: string,
@@ -95,6 +136,16 @@ export class CatalogChannelStreamsController {
   @Post()
   create(@Param('channelId') channelId: string, @Body() body: CatalogRelationBody) {
     return this.catalog.addChannelStream(channelId, body);
+  }
+
+  @Post('bulk-attach')
+  bulkAttach(@Param('channelId') channelId: string, @Body() body: BulkRelationBody) {
+    return this.catalog.bulkAttachChannelStreams(channelId, body);
+  }
+
+  @Post('bulk-detach')
+  bulkDetach(@Param('channelId') channelId: string, @Body() body: BulkRelationBody) {
+    return this.catalog.bulkDetachChannelStreams(channelId, body);
   }
 
   @Patch(':relationId')

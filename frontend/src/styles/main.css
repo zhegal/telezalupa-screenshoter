@@ -628,6 +628,54 @@ button {
   min-height: 32px;
 }
 
+.bulk-stats {
+  margin: 14px 0 0;
+  color: #b8f8df;
+  line-height: 1.45;
+}
+
+.bulk-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.bulk-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-height: 62px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bulk-option strong,
+.bulk-option small {
+  display: block;
+}
+
+.bulk-option small {
+  margin-top: 4px;
+  color: #8ca39c;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.bulk-transform {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bulk-transform h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
 .filter-input.compact {
   min-width: 180px;
 }

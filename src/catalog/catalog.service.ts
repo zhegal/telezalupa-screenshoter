@@ -6,7 +6,15 @@ import {
 } from '@nestjs/common';
 import prismaClient from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { CatalogEntity, CatalogListQuery, CatalogRelationBody } from './catalog.types.js';
+import type {
+  BulkOperationStats,
+  BulkRelationBody,
+  BulkStreamsBody,
+  CatalogEntity,
+  CatalogListQuery,
+  CatalogRelationBody,
+  StreamTransformPreviewItem,
+} from './catalog.types.js';
 
 const { Prisma } = prismaClient;
 
@@ -133,6 +141,50 @@ export class CatalogService {
     return { ok: true };
   }
 
+  async bulkAttachPlaylistChannels(playlistId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
+    await this.ensureExists(this.prisma.playlist, playlistId, 'Playlist not found');
+    const channelIds = this.uniqueIds(body.channelIds);
+    const existing = await this.prisma.playlistChannel.findMany({
+      where: { playlistId, channelId: { in: channelIds } },
+      select: { channelId: true },
+    });
+    const existingIds = new Set(existing.map((item) => item.channelId));
+    const channels = await this.prisma.channel.findMany({
+      where: { id: { in: channelIds } },
+      select: { id: true },
+    });
+    const validIds = new Set(channels.map((item) => item.id));
+    const createIds = channelIds.filter((id) => validIds.has(id) && !existingIds.has(id));
+
+    if (createIds.length > 0) {
+      await this.prisma.playlistChannel.createMany({
+        data: createIds.map((channelId) => ({ playlistId, channelId })),
+      });
+    }
+
+    return {
+      requested: channelIds.length,
+      created: createIds.length,
+      skipped: channelIds.filter((id) => existingIds.has(id)).length,
+      failed: channelIds.filter((id) => !validIds.has(id)).length,
+    };
+  }
+
+  async bulkDetachPlaylistChannels(playlistId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
+    await this.ensureExists(this.prisma.playlist, playlistId, 'Playlist not found');
+    const channelIds = this.uniqueIds(body.channelIds);
+    const deleted = await this.prisma.playlistChannel.deleteMany({
+      where: { playlistId, channelId: { in: channelIds } },
+    });
+
+    return {
+      requested: channelIds.length,
+      deleted: deleted.count,
+      skipped: channelIds.length - deleted.count,
+      failed: 0,
+    };
+  }
+
   async listChannelStreams(channelId: string) {
     await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
 
@@ -172,6 +224,128 @@ export class CatalogService {
   async deleteChannelStream(_channelId: string, relationId: string) {
     await this.prisma.channelStream.delete({ where: { id: relationId } });
     return { ok: true };
+  }
+
+  async bulkAttachChannelStreams(channelId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
+    await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
+    const streamIds = this.uniqueIds(body.streamIds);
+    const existing = await this.prisma.channelStream.findMany({
+      where: { channelId, streamId: { in: streamIds } },
+      select: { streamId: true },
+    });
+    const existingIds = new Set(existing.map((item) => item.streamId));
+    const streams = await this.prisma.stream.findMany({
+      where: { id: { in: streamIds } },
+      select: { id: true },
+    });
+    const validIds = new Set(streams.map((item) => item.id));
+    const createIds = streamIds.filter((id) => validIds.has(id) && !existingIds.has(id));
+
+    if (createIds.length > 0) {
+      await this.prisma.channelStream.createMany({
+        data: createIds.map((streamId) => ({ channelId, streamId })),
+      });
+    }
+
+    return {
+      requested: streamIds.length,
+      created: createIds.length,
+      skipped: streamIds.filter((id) => existingIds.has(id)).length,
+      failed: streamIds.filter((id) => !validIds.has(id)).length,
+    };
+  }
+
+  async bulkDetachChannelStreams(channelId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
+    await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
+    const streamIds = this.uniqueIds(body.streamIds);
+    const deleted = await this.prisma.channelStream.deleteMany({
+      where: { channelId, streamId: { in: streamIds } },
+    });
+
+    return {
+      requested: streamIds.length,
+      deleted: deleted.count,
+      skipped: streamIds.length - deleted.count,
+      failed: 0,
+    };
+  }
+
+  async bulkTransformPreview(body: BulkStreamsBody): Promise<StreamTransformPreviewItem[]> {
+    const streamIds = this.uniqueIds(body.streamIds);
+    const providerId = this.requiredString(body.providerId, 'providerId');
+    await this.ensureExists(this.prisma.provider, providerId, 'Provider not found');
+    const streams = await this.prisma.stream.findMany({
+      where: { id: { in: streamIds } },
+      select: { id: true, directUrl: true },
+    });
+    const streamMap = new Map(streams.map((stream) => [stream.id, stream]));
+
+    return streamIds.map((streamId) => {
+      const stream = streamMap.get(streamId);
+
+      if (!stream) {
+        return { streamId, directUrl: null, streamKey: null, providerId, valid: false, error: 'Stream not found' };
+      }
+
+      return this.createTransformPreviewItem(stream.id, stream.directUrl, providerId, body);
+    });
+  }
+
+  async bulkTransformApply(body: BulkStreamsBody): Promise<BulkOperationStats> {
+    const preview = await this.bulkTransformPreview(body);
+    const validItems = preview.filter((item) => item.valid && item.streamKey);
+
+    await Promise.all(
+      validItems.map((item) =>
+        this.prisma.stream.update({
+          where: { id: item.streamId },
+          data: {
+            directUrl: null,
+            providerId: item.providerId,
+            streamKey: item.streamKey,
+          },
+        }),
+      ),
+    );
+
+    return {
+      requested: preview.length,
+      updated: validItems.length,
+      skipped: preview.length - validItems.length,
+      failed: 0,
+    };
+  }
+
+  async bulkProviderAssign(body: BulkStreamsBody): Promise<BulkOperationStats> {
+    const streamIds = this.uniqueIds(body.streamIds);
+    const providerId = this.requiredString(body.providerId, 'providerId');
+    await this.ensureExists(this.prisma.provider, providerId, 'Provider not found');
+    const updated = await this.prisma.stream.updateMany({
+      where: { id: { in: streamIds } },
+      data: { providerId },
+    });
+
+    return {
+      requested: streamIds.length,
+      updated: updated.count,
+      skipped: streamIds.length - updated.count,
+      failed: 0,
+    };
+  }
+
+  async bulkSetStreamsEnabled(body: BulkStreamsBody, enabled: boolean): Promise<BulkOperationStats> {
+    const streamIds = this.uniqueIds(body.streamIds);
+    const updated = await this.prisma.stream.updateMany({
+      where: { id: { in: streamIds } },
+      data: { enabled },
+    });
+
+    return {
+      requested: streamIds.length,
+      updated: updated.count,
+      skipped: streamIds.length - updated.count,
+      failed: 0,
+    };
   }
 
   async listChannelTimezones(channelId: string) {
@@ -476,6 +650,48 @@ export class CatalogService {
     }
 
     return data;
+  }
+
+  private uniqueIds(ids: unknown): string[] {
+    if (!Array.isArray(ids)) {
+      throw new BadRequestException('ids array is required');
+    }
+
+    return Array.from(
+      new Set(ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)),
+    );
+  }
+
+  private createTransformPreviewItem(
+    streamId: string,
+    directUrl: string | null,
+    providerId: string,
+    body: BulkStreamsBody,
+  ): StreamTransformPreviewItem {
+    if (!directUrl) {
+      return { streamId, directUrl, streamKey: null, providerId, valid: false, error: 'directUrl is empty' };
+    }
+
+    const prefix = typeof body.prefixToStrip === 'string' ? body.prefixToStrip : '';
+    const suffix = typeof body.suffixToStrip === 'string' ? body.suffixToStrip : '';
+
+    if (prefix && !directUrl.startsWith(prefix)) {
+      return { streamId, directUrl, streamKey: null, providerId, valid: false, error: 'prefix does not match' };
+    }
+
+    if (suffix && !directUrl.endsWith(suffix)) {
+      return { streamId, directUrl, streamKey: null, providerId, valid: false, error: 'suffix does not match' };
+    }
+
+    const start = prefix.length;
+    const end = suffix ? directUrl.length - suffix.length : directUrl.length;
+    const streamKey = directUrl.slice(start, end);
+
+    if (!streamKey) {
+      return { streamId, directUrl, streamKey: null, providerId, valid: false, error: 'streamKey is empty' };
+    }
+
+    return { streamId, directUrl, streamKey, providerId, valid: true };
   }
 
   private async ensureExists(delegate: PrismaDelegate, id: string, message: string): Promise<void> {
