@@ -57,7 +57,7 @@
 
       <p v-if="error" class="form-error">{{ error }}</p>
 
-      <div class="catalog-layout">
+      <div class="catalog-layout" :class="{ 'form-open': formVisible }">
         <div class="table-wrap catalog-list">
           <table class="runtime-table">
             <thead>
@@ -94,18 +94,24 @@
                 </td>
               </tr>
               <tr v-if="items.length === 0">
-                <td colspan="4" class="empty-cell">Нет записей</td>
+                <td :colspan="activeEntity === 'streams' ? 5 : 4" class="empty-cell">
+                  <div class="empty-state">
+                    <span>Нет записей</span>
+                    <button class="ghost-button control-button" type="button" @click="startCreate">Создать</button>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <form class="catalog-form" @submit.prevent="saveForm">
+        <form v-if="formVisible" class="catalog-form" @submit.prevent="saveForm">
           <div class="panel-header">
             <div>
               <p class="eyebrow">{{ editingId ? 'Edit' : 'Create' }}</p>
               <h2>{{ currentConfig.label }}</h2>
             </div>
+            <button class="ghost-button control-button" type="button" @click="hideForm">Закрыть</button>
           </div>
 
           <label v-for="field in currentConfig.fields" :key="field.name">
@@ -316,6 +322,7 @@ const loading = ref(false);
 const saving = ref(false);
 const error = ref<string | null>(null);
 const editingId = ref<string | null>(null);
+const formVisible = ref(false);
 const form = reactive<Record<string, string | boolean>>({});
 const selectedStreamIds = reactive(new Set<string>());
 
@@ -330,7 +337,7 @@ async function selectEntity(entity: CatalogEntity) {
   search.value = '';
   enabledFilter.value = '';
   selected.value = null;
-  startCreate();
+  hideForm();
   clearStreamSelection();
   await loadItems();
 }
@@ -375,12 +382,20 @@ function startCreate() {
   editingId.value = null;
   selected.value = null;
   resetForm();
+  formVisible.value = true;
 }
 
 function startEdit(item: CatalogItem) {
   selected.value = item;
   editingId.value = item.id;
   resetForm(item);
+  formVisible.value = true;
+}
+
+function hideForm() {
+  formVisible.value = false;
+  editingId.value = null;
+  selected.value = null;
 }
 
 async function saveForm() {
@@ -400,6 +415,7 @@ async function saveForm() {
 
     selected.value = saved;
     editingId.value = saved.id;
+    formVisible.value = false;
     await Promise.all([loadItems(), loadRelationsAndOptions()]);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
