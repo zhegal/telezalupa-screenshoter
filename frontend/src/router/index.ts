@@ -8,6 +8,7 @@ import LogsPage from '../pages/LogsPage.vue';
 import NotFoundPage from '../pages/NotFoundPage.vue';
 import PlaylistsPage from '../pages/PlaylistsPage.vue';
 import SetupPage from '../pages/SetupPage.vue';
+import SettingsSourcesPage from '../pages/SettingsSourcesPage.vue';
 import WorkerPage from '../pages/WorkerPage.vue';
 import { useAuthStore } from '../stores/auth.store';
 
@@ -97,7 +98,7 @@ export const router = createRouter({
     {
       path: '/settings',
       name: 'settings',
-      component: DashboardPage,
+      component: SettingsSourcesPage,
       meta: {
         requiresAuth: true,
       },

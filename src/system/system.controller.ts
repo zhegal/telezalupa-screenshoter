@@ -8,13 +8,19 @@ export class SystemController {
   constructor(@Inject(WorkerService) private readonly worker: WorkerService) {}
 
   @Get('status')
-  status() {
+  async status() {
+    const worker = await this.worker.getFreshStatus();
+
     return {
       status: 'ok',
-      source: 'json',
+      source: worker.activeChannelSource,
+      activeChannelSource: worker.activeChannelSource,
+      jsonSourceAvailable: worker.jsonSourceAvailable,
+      databaseSourceAvailable: worker.databaseSourceAvailable,
+      databaseSourceImplemented: worker.databaseSourceImplemented,
       uptimeSeconds: Math.round(process.uptime()),
       nodeVersion: process.version,
-      worker: this.worker.getStatus(),
+      worker,
       now: new Date().toISOString(),
     };
   }

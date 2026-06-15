@@ -111,6 +111,36 @@ Runtime views:
 - `/channels` shows read-only channels from loaded JSON playlists, with search and filters for availability/errors.
 - `/worker` shows detailed worker status and worker logs.
 - `/logs` shows the in-memory runtime log ring buffer for the last 48 hours.
+- `/settings` manages the active worker channel source and the temporary JSON playlist file.
+
+## Source Management
+
+The active channel source is stored in PostgreSQL in `system_settings`.
+
+Supported sources:
+
+- `json`: current production behavior. The worker reads `data/playlists.json`, loads JSON playlists, and uses the existing in-memory playlist/channel selection logic.
+- `database`: selectable now, but the database-backed worker loader is intentionally not implemented yet. When selected, the worker does not read `data/playlists.json` and stays in a safe idle state.
+
+Authenticated source endpoints:
+
+```txt
+GET    /api/settings/sources/status
+PATCH  /api/settings/sources/active
+GET    /api/settings/sources/json-file
+PUT    /api/settings/sources/json-file
+DELETE /api/settings/sources/json-file
+```
+
+`PATCH /api/settings/sources/active` accepts:
+
+```json
+{ "source": "json" }
+```
+
+Switching source restarts the in-process worker. Switching to `json` is allowed only when `data/playlists.json` exists and contains a valid array of playlist URL strings. Switching to `database` is always allowed.
+
+The JSON file manager validates and pretty-formats the file on save. Overwrite and delete create timestamped backups in `data/`. Deleting the JSON file while `json` is active switches the active source to `database` and restarts the worker.
 
 ## Frontend
 
@@ -373,6 +403,8 @@ docker compose up -d --build
 
 Local compose starts both `screenshoter` and `postgres`. PostgreSQL uses the named volume `postgres_data` and does not publish a database port to the host. `DATABASE_URL` is assembled by compose automatically from `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD`.
 
+The local compose also mounts `screenshoter_data` to `/app/data` so the managed `data/playlists.json` and timestamped backups survive container rebuilds.
+
 Production compose is intended for VPS usage behind Nginx Proxy Manager. It does not publish backend or PostgreSQL ports to the host; it exposes backend port `3000` only inside Docker networks.
 
 ```bash
@@ -386,3 +418,4 @@ In production compose:
 - `screenshoter` is attached to the external `proxy` network and an internal network.
 - `postgres` is attached only to the internal network.
 - PostgreSQL data is stored in the named volume `postgres_data`.
+- Managed JSON source data and backups are stored in the named volume `screenshoter_data` mounted at `/app/data`.

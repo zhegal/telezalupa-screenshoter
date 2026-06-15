@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module.js';
 import { LogsModule } from './logs/logs.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RuntimeModule } from './runtime/runtime.module.js';
+import { SettingsModule } from './settings/settings.module.js';
 import { SystemModule } from './system/system.module.js';
 import { WorkerModule } from './worker/worker.module.js';
 
@@ -19,6 +20,7 @@ import { WorkerModule } from './worker/worker.module.js';
     LogsModule,
     WorkerModule,
     RuntimeModule,
+    SettingsModule,
     SystemModule,
   ],
 })

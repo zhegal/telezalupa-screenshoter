@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { ChannelSource, SourceStatus } from '../settings/source-settings.types.js';
 
 export type WorkerStatus = 'stopped' | 'running';
 
@@ -23,7 +24,11 @@ export interface WorkerStatusSnapshot {
   cyclesCount: number;
   successCount: number;
   errorCount: number;
-  source: 'json';
+  source: ChannelSource;
+  activeChannelSource: ChannelSource;
+  jsonSourceAvailable: boolean;
+  databaseSourceAvailable: boolean;
+  databaseSourceImplemented: boolean;
 }
 
 export interface ChannelRuntimeStatus {
@@ -59,6 +64,10 @@ export class WorkerStateService {
   private cyclesCount = 0;
   private successCount = 0;
   private errorCount = 0;
+  private activeChannelSource: ChannelSource = 'json';
+  private jsonSourceAvailable = false;
+  private databaseSourceAvailable = true;
+  private databaseSourceImplemented = false;
 
   getStatus(): WorkerStatus {
     return this.status;
@@ -169,6 +178,13 @@ export class WorkerStateService {
     this.nextRunAt = null;
   }
 
+  setSourceStatus(status: SourceStatus): void {
+    this.activeChannelSource = status.activeChannelSource;
+    this.jsonSourceAvailable = status.json.sourceAvailable;
+    this.databaseSourceAvailable = status.database.sourceAvailable;
+    this.databaseSourceImplemented = status.database.implemented;
+  }
+
   getSnapshot(): WorkerStatusSnapshot {
     return {
       running: this.status === 'running',
@@ -191,7 +207,11 @@ export class WorkerStateService {
       cyclesCount: this.cyclesCount,
       successCount: this.successCount,
       errorCount: this.errorCount,
-      source: 'json',
+      source: this.activeChannelSource,
+      activeChannelSource: this.activeChannelSource,
+      jsonSourceAvailable: this.jsonSourceAvailable,
+      databaseSourceAvailable: this.databaseSourceAvailable,
+      databaseSourceImplemented: this.databaseSourceImplemented,
     };
   }
 

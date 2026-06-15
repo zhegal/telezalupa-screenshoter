@@ -14,6 +14,7 @@ import { PlaylistLoaderService } from '../playlists/playlist-loader.service.js';
 import { SchedulerService } from './scheduler.service.js';
 import { WorkerStateService } from './worker-state.service.js';
 import { RuntimeLogService } from '../logs/runtime-log.service.js';
+import { SourceSettingsService } from '../settings/source-settings.service.js';
 
 export interface WorkerRunResult {
   status: 'started' | 'stopped' | 'busy' | 'completed' | 'ignored';
@@ -34,6 +35,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject(SchedulerService) private readonly scheduler: SchedulerService,
     @Inject(WorkerStateService) private readonly workerState: WorkerStateService,
     @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
+    @Inject(SourceSettingsService) private readonly sourceSettings: SourceSettingsService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -69,7 +71,12 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     this.workerState.markRestarted();
     this.workerState.clearRuntimeCaches();
     this.playlistSelector.reset();
-    await this.playlistLoader.reloadAllPlaylists();
+    const sourceStatus = await this.refreshSourceStatus();
+
+    if (sourceStatus.activeChannelSource === 'json') {
+      await this.playlistLoader.reloadAllPlaylists();
+    }
+
     this.logs.add('info', 'worker', 'Worker restarted');
 
     return this.start();
@@ -101,7 +108,33 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     return this.workerState.getSnapshot();
   }
 
+  async getFreshStatus() {
+    await this.refreshSourceStatus();
+
+    return this.getStatus();
+  }
+
   private async runCycleStep(): Promise<void> {
+    const sourceStatus = await this.refreshSourceStatus();
+
+    if (sourceStatus.activeChannelSource === 'database') {
+      const message = 'Database channel source is selected but worker database loader is not implemented yet';
+      this.logger.warn(message);
+      this.logs.add('warn', 'worker', message);
+      this.scheduleNext(this.workerConfig.retryIntervalMs);
+      return;
+    }
+
+    if (!sourceStatus.json.sourceAvailable) {
+      const message = sourceStatus.json.error || 'JSON channel source is not available';
+      this.logger.warn(message);
+      this.logs.add('warn', 'worker', message, {
+        filePath: sourceStatus.json.path,
+      });
+      this.scheduleNext(this.workerConfig.retryIntervalMs);
+      return;
+    }
+
     const selected = await this.playlistSelector.selectChannel();
 
     if (!selected) {
@@ -172,5 +205,12 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     this.scheduler.schedule(() => {
       void this.runOnce();
     }, delayMs);
+  }
+
+  private async refreshSourceStatus() {
+    const sourceStatus = await this.sourceSettings.getStatus();
+    this.workerState.setSourceStatus(sourceStatus);
+
+    return sourceStatus;
   }
 }

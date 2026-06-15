@@ -9,30 +9,38 @@ export class WorkerController {
 
   @Get('status')
   status() {
-    return this.worker.getStatus();
+    return this.worker.getFreshStatus();
   }
 
   @Post('start')
   @HttpCode(200)
-  start() {
-    return this.worker.start();
+  async start() {
+    const result = this.worker.start();
+
+    return { ...result, worker: await this.worker.getFreshStatus() };
   }
 
   @Post('stop')
   @HttpCode(200)
-  stop() {
-    return this.worker.stop();
+  async stop() {
+    const result = this.worker.stop();
+
+    return { ...result, worker: await this.worker.getFreshStatus() };
   }
 
   @Post('restart')
   @HttpCode(200)
-  restart() {
-    return this.worker.restart();
+  async restart() {
+    const result = await this.worker.restart();
+
+    return { ...result, worker: await this.worker.getFreshStatus() };
   }
 
   @Post('run-once')
   @HttpCode(200)
-  runOnce() {
-    return this.worker.runOnce({ allowStopped: true });
+  async runOnce() {
+    const result = await this.worker.runOnce({ allowStopped: true });
+
+    return { ...result, worker: await this.worker.getFreshStatus() };
   }
 }

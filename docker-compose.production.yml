@@ -19,6 +19,8 @@ services:
       TEMP_ADMIN_PASSWORD: ${TEMP_ADMIN_PASSWORD:-}
     expose:
       - "3000"
+    volumes:
+      - screenshoter_data:/app/data
     networks:
       - internal
       - proxy
@@ -51,3 +53,4 @@ networks:
 
 volumes:
   postgres_data:
+  screenshoter_data:

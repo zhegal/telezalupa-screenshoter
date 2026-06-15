@@ -38,6 +38,8 @@ export interface SetupPayload {
   telegramId?: string;
 }
 
+export type ChannelSource = 'json' | 'database';
+
 export interface WorkerStatus {
   running: boolean;
   busy: boolean;
@@ -59,7 +61,11 @@ export interface WorkerStatus {
   cyclesCount: number;
   successCount: number;
   errorCount: number;
-  source: 'json';
+  source: ChannelSource;
+  activeChannelSource: ChannelSource;
+  jsonSourceAvailable: boolean;
+  databaseSourceAvailable: boolean;
+  databaseSourceImplemented: boolean;
 }
 
 export interface WorkerActionResponse {
@@ -69,11 +75,62 @@ export interface WorkerActionResponse {
 
 export interface SystemStatus {
   status: string;
-  source: 'json';
+  source: ChannelSource;
+  activeChannelSource: ChannelSource;
+  jsonSourceAvailable: boolean;
+  databaseSourceAvailable: boolean;
+  databaseSourceImplemented: boolean;
   uptimeSeconds: number;
   nodeVersion: string;
   now: string;
   worker: WorkerStatus;
+}
+
+export interface JsonSourceStatus {
+  path: string;
+  exists: boolean;
+  valid: boolean;
+  sourceAvailable: boolean;
+  sourceCount: number;
+  error: string | null;
+}
+
+export interface DatabaseSourceStatus {
+  implemented: false;
+  sourceAvailable: true;
+  playlistCount: number;
+  channelCount: number;
+  streamCount: number;
+  providerCount: number;
+}
+
+export interface SourceSettingsStatus {
+  activeChannelSource: ChannelSource;
+  json: JsonSourceStatus;
+  database: DatabaseSourceStatus;
+  databaseSourceImplemented: false;
+}
+
+export interface JsonFileResponse {
+  status: JsonSourceStatus;
+  content: string | null;
+}
+
+export interface JsonFileSaveResponse {
+  status: JsonSourceStatus;
+  backupPath: string | null;
+}
+
+export interface JsonFileDeleteResponse {
+  status: JsonSourceStatus;
+  backupPath: string | null;
+  switchedToDatabase: boolean;
+  worker: WorkerActionResponse;
+}
+
+export interface SourceSwitchResponse {
+  status: SourceSettingsStatus;
+  worker: WorkerActionResponse;
 }
 
 export interface RuntimePlaylist {
@@ -312,6 +369,34 @@ export async function restartWorker(): Promise<WorkerActionResponse> {
 
 export async function runWorkerOnce(): Promise<WorkerActionResponse> {
   return apiFetch<WorkerActionResponse>('/api/worker/run-once', { method: 'POST' });
+}
+
+export async function getSourceSettingsStatus(): Promise<SourceSettingsStatus> {
+  return apiFetch<SourceSettingsStatus>('/api/settings/sources/status');
+}
+
+export async function setActiveSource(source: ChannelSource): Promise<SourceSwitchResponse> {
+  return apiFetch<SourceSwitchResponse>('/api/settings/sources/active', {
+    method: 'PATCH',
+    body: JSON.stringify({ source }),
+  });
+}
+
+export async function getJsonSourceFile(): Promise<JsonFileResponse> {
+  return apiFetch<JsonFileResponse>('/api/settings/sources/json-file');
+}
+
+export async function saveJsonSourceFile(content: string): Promise<JsonFileSaveResponse> {
+  return apiFetch<JsonFileSaveResponse>('/api/settings/sources/json-file', {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function deleteJsonSourceFile(): Promise<JsonFileDeleteResponse> {
+  return apiFetch<JsonFileDeleteResponse>('/api/settings/sources/json-file', {
+    method: 'DELETE',
+  });
 }
 
 export async function getRuntimePlaylists(): Promise<RuntimeListResponse<RuntimePlaylist>> {

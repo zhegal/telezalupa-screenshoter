@@ -18,9 +18,9 @@
         автоматически.
       </p>
       <div class="control-row">
-        <RouterLink class="ghost-button control-button" to="/catalog/import"
-          >Open JSON Import Wizard</RouterLink
-        >
+        <RouterLink class="ghost-button control-button" to="/catalog/import">
+          Open JSON Import Wizard
+        </RouterLink>
       </div>
 
       <div class="catalog-tabs">

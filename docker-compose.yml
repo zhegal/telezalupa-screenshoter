@@ -20,6 +20,8 @@ services:
       COOKIE_SECURE: "false"
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - screenshoter_data:/app/data
     logging:
       driver: "none"
 
@@ -41,3 +43,4 @@ services:
 
 volumes:
   postgres_data:
+  screenshoter_data:

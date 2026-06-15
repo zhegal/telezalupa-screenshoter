@@ -17,7 +17,7 @@
         <dl class="meta-grid">
           <div>
             <dt>Source</dt>
-            <dd>{{ system?.source || 'json' }}</dd>
+            <dd>{{ system?.activeChannelSource || system?.source || 'json' }}</dd>
           </div>
           <div>
             <dt>Worker</dt>
@@ -61,11 +61,19 @@
       <dl class="meta-grid metrics-grid">
         <div>
           <dt>Channel source</dt>
-          <dd>JSON</dd>
+          <dd>{{ system?.activeChannelSource || 'json' }}</dd>
         </div>
         <div>
-          <dt>Database catalog</dt>
-          <dd>available</dd>
+          <dt>JSON source</dt>
+          <dd>{{ system?.jsonSourceAvailable ? 'available' : 'unavailable' }}</dd>
+        </div>
+        <div>
+          <dt>Database source</dt>
+          <dd>{{ system?.databaseSourceAvailable ? 'available' : 'unavailable' }}</dd>
+        </div>
+        <div>
+          <dt>Database worker loader</dt>
+          <dd>{{ system?.databaseSourceImplemented ? 'implemented' : 'not implemented' }}</dd>
         </div>
         <div>
           <dt>Cycles</dt>
@@ -80,6 +88,10 @@
           <dd>{{ system?.worker.errorCount ?? 0 }}</dd>
         </div>
       </dl>
+
+      <p v-if="system?.activeChannelSource === 'database' && !system.databaseSourceImplemented" class="catalog-warning">
+        Database source is selected, but the worker database loader is not implemented yet. Worker will stay idle.
+      </p>
     </section>
 
     <section class="sections-block" aria-labelledby="sections-title">
@@ -201,10 +213,19 @@ async function runAction(action: 'start' | 'stop' | 'restart' | 'runOnce') {
       ...(system.value || {
         status: 'ok',
         source: 'json',
+        activeChannelSource: result.worker.activeChannelSource,
+        jsonSourceAvailable: result.worker.jsonSourceAvailable,
+        databaseSourceAvailable: result.worker.databaseSourceAvailable,
+        databaseSourceImplemented: result.worker.databaseSourceImplemented,
         uptimeSeconds: 0,
         nodeVersion: '',
         now: new Date().toISOString(),
       }),
+      source: result.worker.activeChannelSource,
+      activeChannelSource: result.worker.activeChannelSource,
+      jsonSourceAvailable: result.worker.jsonSourceAvailable,
+      databaseSourceAvailable: result.worker.databaseSourceAvailable,
+      databaseSourceImplemented: result.worker.databaseSourceImplemented,
       worker: result.worker,
     };
   } finally {
