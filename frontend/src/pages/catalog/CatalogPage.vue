@@ -10,14 +10,17 @@
       </div>
 
       <p class="catalog-warning">
-        Эти записи сохраняются в PostgreSQL для будущего перехода на database source. Текущий worker не
-        мониторит созданные здесь каналы и продолжает использовать JSON/runtime источник.
+        Эти записи сохраняются в PostgreSQL для будущего перехода на database source. Текущий worker
+        не мониторит созданные здесь каналы и продолжает использовать JSON/runtime источник.
       </p>
       <p v-if="activeEntity === 'providers'" class="catalog-warning">
-        Match prefix/suffix используются только для import suggestions. Они не применяются автоматически.
+        Match prefix/suffix используются только для import suggestions. Они не применяются
+        автоматически.
       </p>
       <div class="control-row">
-        <RouterLink class="ghost-button control-button" to="/catalog/import">Open JSON Import Wizard</RouterLink>
+        <RouterLink class="ghost-button control-button" to="/catalog/import"
+          >Open JSON Import Wizard</RouterLink
+        >
       </div>
 
       <div class="catalog-tabs">
@@ -44,13 +47,24 @@
       </div>
 
       <div class="filter-row">
-        <input v-model="search" class="filter-input" type="search" placeholder="Поиск" @keydown.enter="loadItems" />
+        <input
+          v-model="search"
+          class="filter-input"
+          type="search"
+          placeholder="Поиск"
+          @keydown.enter="loadItems"
+        />
         <select v-model="enabledFilter" class="filter-input compact" @change="loadItems">
           <option value="">Все</option>
           <option value="true">Enabled</option>
           <option value="false">Disabled</option>
         </select>
-        <button class="ghost-button control-button" type="button" :disabled="loading" @click="loadItems">
+        <button
+          class="ghost-button control-button"
+          type="button"
+          :disabled="loading"
+          @click="loadItems"
+        >
           Обновить
         </button>
       </div>
@@ -70,7 +84,11 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in items" :key="item.id" :class="{ selected: selected?.id === item.id }">
+              <tr
+                v-for="item in items"
+                :key="item.id"
+                :class="{ selected: selected?.id === item.id }"
+              >
                 <td>
                   <strong>{{ displayTitle(item) }}</strong>
                   <small>{{ item.id }}</small>
@@ -79,7 +97,9 @@
                   <input
                     :checked="selectedStreamIds.has(item.id)"
                     type="checkbox"
-                    @change="toggleStreamSelection(item.id, ($event.target as HTMLInputElement).checked)"
+                    @change="
+                      toggleStreamSelection(item.id, ($event.target as HTMLInputElement).checked)
+                    "
                   />
                 </td>
                 <td>
@@ -89,15 +109,23 @@
                 </td>
                 <td class="truncate">{{ detailText(item) }}</td>
                 <td class="row-actions">
-                  <button class="ghost-button" type="button" @click="startEdit(item)">Edit</button>
-                  <button class="ghost-button danger" type="button" @click="removeItem(item)">Delete</button>
+                  <div class="row-actions__inner">
+                    <button class="ghost-button" type="button" @click="startEdit(item)">
+                      Edit
+                    </button>
+                    <button class="ghost-button danger" type="button" @click="removeItem(item)">
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="items.length === 0">
                 <td :colspan="activeEntity === 'streams' ? 5 : 4" class="empty-cell">
                   <div class="empty-state">
                     <span>Нет записей</span>
-                    <button class="ghost-button control-button" type="button" @click="startCreate">Создать</button>
+                    <button class="ghost-button control-button" type="button" @click="startCreate">
+                      Создать
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -111,7 +139,9 @@
               <p class="eyebrow">{{ editingId ? 'Edit' : 'Create' }}</p>
               <h2>{{ currentConfig.label }}</h2>
             </div>
-            <button class="ghost-button control-button" type="button" @click="hideForm">Закрыть</button>
+            <button class="ghost-button control-button" type="button" @click="hideForm">
+              Закрыть
+            </button>
           </div>
 
           <label v-for="field in currentConfig.fields" :key="field.name">
@@ -238,7 +268,12 @@ const entityConfigs: EntityConfig[] = [
     label: 'Providers',
     fields: [
       { name: 'title', label: 'Название', type: 'text' },
-      { name: 'urlTemplate', label: 'URL template', type: 'text', placeholder: 'https://host/{streamKey}/playlist.m3u8' },
+      {
+        name: 'urlTemplate',
+        label: 'URL template',
+        type: 'text',
+        placeholder: 'https://host/{streamKey}/playlist.m3u8',
+      },
       { name: 'matchPrefix', label: 'Match prefix', type: 'text' },
       { name: 'matchSuffix', label: 'Match suffix', type: 'text' },
       { name: 'enabled', label: 'Enabled', type: 'checkbox' },
@@ -326,7 +361,9 @@ const formVisible = ref(false);
 const form = reactive<Record<string, string | boolean>>({});
 const selectedStreamIds = reactive(new Set<string>());
 
-const currentConfig = computed(() => entityConfigs.find((item) => item.entity === activeEntity.value) || entityConfigs[0]);
+const currentConfig = computed(
+  () => entityConfigs.find((item) => item.entity === activeEntity.value) || entityConfigs[0],
+);
 
 onMounted(async () => {
   await Promise.all([loadItems(), loadRelationsAndOptions()]);
@@ -449,13 +486,19 @@ function resetForm(source: CatalogItem | null = null) {
     if (field.type === 'checkbox') {
       form[field.name] = source ? Boolean(source[field.name]) : field.name === 'enabled';
     } else {
-      form[field.name] = source?.[field.name] === null || source?.[field.name] === undefined ? '' : String(source?.[field.name] || '');
+      form[field.name] =
+        source?.[field.name] === null || source?.[field.name] === undefined
+          ? ''
+          : String(source?.[field.name] || '');
     }
   }
 }
 
 function validateForm() {
-  if (activeEntity.value === 'providers' && !String(form.urlTemplate || '').includes('{streamKey}')) {
+  if (
+    activeEntity.value === 'providers' &&
+    !String(form.urlTemplate || '').includes('{streamKey}')
+  ) {
     return 'Provider.urlTemplate должен содержать {streamKey}';
   }
 
@@ -531,7 +574,8 @@ async function handleStreamBulkChanged() {
 }
 
 function detailText(item: CatalogItem) {
-  if ('urlTemplate' in item) return `${item.urlTemplate || ''} ${item.matchPrefix || ''} ${item.matchSuffix || ''}`.trim();
+  if ('urlTemplate' in item)
+    return `${item.urlTemplate || ''} ${item.matchPrefix || ''} ${item.matchSuffix || ''}`.trim();
   if ('directUrl' in item) return String(item.directUrl || item.streamKey || '');
   if ('description' in item) return String(item.description || '');
   if ('timezone' in item) return `${item.timezone || ''} ${item.label || ''}`;

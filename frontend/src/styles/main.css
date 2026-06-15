@@ -611,7 +611,14 @@ button {
   white-space: nowrap;
 }
 
-.row-actions .ghost-button + .ghost-button {
+.row-actions__inner {
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  display: flex;
+}
+
+.row-actions .ghost-button+.ghost-button {
   margin-left: 8px;
 }
 
