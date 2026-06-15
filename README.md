@@ -297,6 +297,72 @@ Important constraints:
 - URLs are transformed only with manually supplied prefix/suffix.
 - The worker still uses `data/playlists.json`.
 
+## JSON Import Wizard
+
+The admin UI includes `/catalog/import`, a protected wizard for importing JSON playlist data into the PostgreSQL catalog. It does not switch the active worker source. The worker still uses `data/playlists.json`.
+
+Wizard steps:
+
+```txt
+1. Source
+2. Playlist
+3. Preview
+4. Apply result
+```
+
+Supported sources:
+
+- pasted JSON;
+- one of the URLs listed in `data/playlists.json`.
+
+Supported JSON shapes reuse the current worker playlist normalizer:
+
+```json
+[
+  { "title": "Channel", "url": "https://example.test/stream.m3u8" }
+]
+```
+
+and:
+
+```json
+{
+  "channels": [
+    { "title": "Channel", "url": "https://example.test/stream.m3u8" }
+  ]
+}
+```
+
+Preview is mandatory and does not write to the database. It shows row counts, invalid rows, channels/streams/links to create, timezone presets to create/reuse, provider suggestions, direct URL streams, and skipped duplicates when duplicate skipping is enabled.
+
+Apply creates catalog records only after confirmation:
+
+- `Playlist`, when importing into a new playlist;
+- `Channel`;
+- `Stream`;
+- `PlaylistChannel`;
+- `ChannelStream`;
+- `TimezonePreset`, using upsert by `timezone + label`;
+- `ChannelTimezone`.
+
+Provider suggestions use `Provider.matchPrefix` and `Provider.matchSuffix`. These fields are only import hints. Providers are not guessed globally, not created automatically, and not applied unless the preview selection is confirmed. When a Provider is selected for a row:
+
+```txt
+Stream.providerId = selected Provider
+Stream.streamKey = computed value
+Stream.directUrl = null
+```
+
+When no Provider is selected:
+
+```txt
+Stream.directUrl = original URL
+Stream.providerId = null
+Stream.streamKey = null
+```
+
+JSON Import Wizard does not implement DB worker mode, automatic provider creation, automatic common-prefix detection, or file/archive import.
+
 ## Docker
 
 Local development compose publishes the app port to the host:

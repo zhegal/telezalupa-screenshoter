@@ -162,6 +162,70 @@ export interface StreamTransformPreviewItem {
   error?: string;
 }
 
+export interface ImportProviderCandidate {
+  providerId: string;
+  title: string;
+  streamKey: string;
+  suggested: boolean;
+}
+
+export interface ImportPreviewRow {
+  rowId: string;
+  title: string;
+  description: string;
+  originalUrl: string;
+  importMode: 'directUrl' | 'providerSuggestion' | 'skip';
+  providerCandidates: ImportProviderCandidate[];
+  selectedProviderId: string | null;
+  computedStreamKey: string | null;
+  timezones: Array<{ timezone: string; label: string; existing: boolean }>;
+  scale: string;
+  delay: number | null;
+  userAgent: string;
+  valid: boolean;
+  errors: string[];
+}
+
+export interface ImportPreviewResponse {
+  summary: {
+    totalRows: number;
+    validRows: number;
+    invalidRows: number;
+    channelsToCreate: number;
+    streamsToCreate: number;
+    playlistLinksToCreate: number;
+    timezonePresetsToReuse: number;
+    timezonePresetsToCreate: number;
+    providerSuggestionsCount: number;
+    directUrlStreamsCount: number;
+    skippedDuplicatesCount: number;
+  };
+  rows: ImportPreviewRow[];
+}
+
+export interface ImportWizardPayload {
+  sourceType: 'paste' | 'existingSource';
+  json?: string;
+  sourceUrl?: string;
+  targetMode: 'newPlaylist' | 'existingPlaylist';
+  playlistId?: string;
+  playlistTitle?: string;
+  skipExactDuplicates: boolean;
+}
+
+export interface ImportApplyResult {
+  playlistId: string | null;
+  createdPlaylist: boolean;
+  createdChannels: number;
+  createdStreams: number;
+  createdPlaylistLinks: number;
+  createdChannelStreamLinks: number;
+  createdTimezonePresets: number;
+  reusedTimezonePresets: number;
+  skipped: number;
+  failed: number;
+}
+
 interface ApiFetchOptions extends RequestInit {
   redirectOnUnauthorized?: boolean;
 }
@@ -426,6 +490,26 @@ export async function applyStreamTransform(payload: {
   suffixToStrip: string;
 }): Promise<BulkOperationStats> {
   return apiFetch<BulkOperationStats>('/api/catalog/streams/bulk-transform-apply', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getImportSources(): Promise<{ items: string[] }> {
+  return apiFetch<{ items: string[] }>('/api/catalog/import/sources');
+}
+
+export async function previewCatalogImport(payload: ImportWizardPayload): Promise<ImportPreviewResponse> {
+  return apiFetch<ImportPreviewResponse>('/api/catalog/import/preview', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function applyCatalogImport(
+  payload: ImportWizardPayload & { rows: Array<{ rowId: string; selectedProviderId: string | null }> },
+): Promise<ImportApplyResult> {
+  return apiFetch<ImportApplyResult>('/api/catalog/import/apply', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

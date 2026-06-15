@@ -432,7 +432,7 @@ export class CatalogService {
     const configs: Record<CatalogEntity, EntityConfig> = {
       providers: {
         delegate: this.prisma.provider,
-        searchableFields: ['title', 'urlTemplate'],
+        searchableFields: ['title', 'urlTemplate', 'matchPrefix', 'matchSuffix'],
       },
       streams: {
         delegate: this.prisma.stream,
@@ -476,12 +476,15 @@ export class CatalogService {
     partial = false,
   ): Record<string, unknown> {
     if (entity === 'providers') {
-      const data = this.pick(body, ['title', 'urlTemplate', 'enabled'], partial);
+      const data = this.pick(body, ['title', 'urlTemplate', 'matchPrefix', 'matchSuffix', 'enabled'], partial);
       const template = data.urlTemplate;
 
       if (typeof template === 'string' && !template.includes('{streamKey}')) {
         throw new BadRequestException('Provider urlTemplate must contain {streamKey}');
       }
+
+      data.matchPrefix = this.normalizeOptionalString(data.matchPrefix);
+      data.matchSuffix = this.normalizeOptionalString(data.matchSuffix);
 
       return data;
     }

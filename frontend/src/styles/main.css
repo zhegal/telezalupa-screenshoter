@@ -676,6 +676,20 @@ button {
   font-size: 16px;
 }
 
+.import-form {
+  margin-top: 18px;
+}
+
+.large-textarea {
+  min-height: 260px !important;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+}
+
+.import-pill {
+  margin: 0 6px 6px 0;
+}
+
 .filter-input.compact {
   min-width: 180px;
 }

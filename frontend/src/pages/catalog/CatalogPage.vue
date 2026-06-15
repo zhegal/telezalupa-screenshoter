@@ -13,6 +13,12 @@
         Эти записи сохраняются в PostgreSQL для будущего перехода на database source. Текущий worker не
         мониторит созданные здесь каналы и продолжает использовать JSON/runtime источник.
       </p>
+      <p v-if="activeEntity === 'providers'" class="catalog-warning">
+        Match prefix/suffix используются только для import suggestions. Они не применяются автоматически.
+      </p>
+      <div class="control-row">
+        <RouterLink class="ghost-button control-button" to="/catalog/import">Open JSON Import Wizard</RouterLink>
+      </div>
 
       <div class="catalog-tabs">
         <button
@@ -227,6 +233,8 @@ const entityConfigs: EntityConfig[] = [
     fields: [
       { name: 'title', label: 'Название', type: 'text' },
       { name: 'urlTemplate', label: 'URL template', type: 'text', placeholder: 'https://host/{streamKey}/playlist.m3u8' },
+      { name: 'matchPrefix', label: 'Match prefix', type: 'text' },
+      { name: 'matchSuffix', label: 'Match suffix', type: 'text' },
       { name: 'enabled', label: 'Enabled', type: 'checkbox' },
     ],
   },
@@ -507,7 +515,7 @@ async function handleStreamBulkChanged() {
 }
 
 function detailText(item: CatalogItem) {
-  if ('urlTemplate' in item) return String(item.urlTemplate || '');
+  if ('urlTemplate' in item) return `${item.urlTemplate || ''} ${item.matchPrefix || ''} ${item.matchSuffix || ''}`.trim();
   if ('directUrl' in item) return String(item.directUrl || item.streamKey || '');
   if ('description' in item) return String(item.description || '');
   if ('timezone' in item) return `${item.timezone || ''} ${item.label || ''}`;

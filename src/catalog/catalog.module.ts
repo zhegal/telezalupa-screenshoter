@@ -7,17 +7,21 @@ import {
   CatalogPlaylistChannelsController,
   CatalogPlaylistTimezonesController,
 } from './catalog.controller.js';
+import { CatalogImportController } from './catalog-import.controller.js';
+import { CatalogImportService } from './catalog-import.service.js';
 import { CatalogService } from './catalog.service.js';
+import { PlaylistsModule } from '../playlists/playlists.module.js';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, PlaylistsModule],
   controllers: [
+    CatalogImportController,
     CatalogController,
     CatalogPlaylistChannelsController,
     CatalogChannelStreamsController,
     CatalogChannelTimezonesController,
     CatalogPlaylistTimezonesController,
   ],
-  providers: [CatalogService],
+  providers: [CatalogService, CatalogImportService],
 })
 export class CatalogModule {}

@@ -19,6 +19,7 @@ import { PlaylistStateService } from './playlist-state.service.js';
   ],
   exports: [
     ChannelAvailabilityService,
+    PlaylistNormalizerService,
     PlaylistLoaderService,
     PlaylistSelectorService,
     PlaylistStateService,
