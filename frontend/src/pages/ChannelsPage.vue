@@ -12,12 +12,15 @@
       </div>
 
       <div class="filter-row">
-        <input v-model="search" class="filter-input" type="search" placeholder="Поиск по названию" />
-        <select v-model="filter" class="filter-input compact">
+        <input v-model="search" class="filter-input" type="search" placeholder="Поиск по названию" @keydown.enter="refresh" />
+        <select v-model="filter" class="filter-input compact" @change="refresh">
           <option value="all">All</option>
           <option value="available">Available now</option>
           <option value="errors">Errors</option>
         </select>
+        <button class="ghost-button control-button" type="button" :disabled="loading" @click="refresh">
+          Найти
+        </button>
       </div>
 
       <div class="table-wrap">
@@ -35,7 +38,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="channel in filteredChannels" :key="`${channel.playlistUrl}:${channel.url}`">
+            <tr v-for="channel in channels" :key="`${channel.playlistUrl}:${channel.url}`">
               <td>
                 <strong>{{ channel.title }}</strong>
                 <small>{{ channel.description }}</small>
@@ -56,39 +59,36 @@
               </td>
               <td class="truncate">{{ channel.playlistUrl }}</td>
             </tr>
-            <tr v-if="filteredChannels.length === 0">
+            <tr v-if="channels.length === 0">
               <td colspan="8" class="empty-cell">No channels match filters</td>
             </tr>
           </tbody>
         </table>
       </div>
+      <PaginationControls
+        :total="total"
+        :offset="offset"
+        :page-size="pageSize"
+        @change-page="changePage"
+        @change-page-size="changePageSize"
+      />
     </section>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import AdminLayout from '../layouts/AdminLayout.vue';
+import PaginationControls from '../components/PaginationControls.vue';
 import { getRuntimeChannels, type RuntimeChannel } from '../services/api';
 
 const channels = ref<RuntimeChannel[]>([]);
 const loading = ref(false);
 const search = ref('');
 const filter = ref<'all' | 'available' | 'errors'>('all');
-
-const filteredChannels = computed(() => {
-  const query = search.value.trim().toLowerCase();
-
-  return channels.value.filter((channel) => {
-    const matchesSearch = !query || channel.title.toLowerCase().includes(query);
-    const matchesFilter =
-      filter.value === 'all' ||
-      (filter.value === 'available' && channel.availableNow) ||
-      (filter.value === 'errors' && Boolean(channel.lastErrorAt || channel.consecutiveFailures));
-
-    return matchesSearch && matchesFilter;
-  });
-});
+const total = ref(0);
+const offset = ref(0);
+const pageSize = ref(Number(localStorage.getItem('runtimeChannelsPageSize') || 50));
 
 onMounted(() => {
   void refresh();
@@ -98,11 +98,29 @@ async function refresh() {
   loading.value = true;
 
   try {
-    const response = await getRuntimeChannels();
+    const response = await getRuntimeChannels({
+      search: search.value,
+      filter: filter.value === 'all' ? '' : filter.value,
+      limit: pageSize.value,
+      offset: offset.value,
+    });
     channels.value = response.items;
+    total.value = response.total || response.items.length;
   } finally {
     loading.value = false;
   }
+}
+
+async function changePage(nextOffset: number) {
+  offset.value = nextOffset;
+  await refresh();
+}
+
+async function changePageSize(nextPageSize: number) {
+  pageSize.value = nextPageSize;
+  localStorage.setItem('runtimeChannelsPageSize', String(nextPageSize));
+  offset.value = 0;
+  await refresh();
 }
 
 function formatDate(value: string | null) {

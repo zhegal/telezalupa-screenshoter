@@ -504,6 +504,32 @@ button {
   margin-top: 18px;
 }
 
+.pagination-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.pagination-meta {
+  color: #8ca39c;
+  font-size: 13px;
+}
+
+.catalog-subnav {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.catalog-subnav-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .filter-input {
   min-height: 40px;
   min-width: 240px;
@@ -644,6 +670,23 @@ button {
 
 .source-json-form {
   margin-top: 18px;
+}
+
+.editor-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.editor-tab-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.relation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .relation-block {

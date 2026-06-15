@@ -165,6 +165,9 @@ export interface RuntimeChannel {
 export interface RuntimeListResponse<T> {
   source: 'json';
   items: T[];
+  total?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export interface RuntimeLogEntry {
@@ -178,6 +181,9 @@ export interface RuntimeLogEntry {
 
 export interface LogsResponse {
   items: RuntimeLogEntry[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export type CatalogEntity =
@@ -199,6 +205,9 @@ export interface CatalogItem {
 
 export interface CatalogListResponse<T = CatalogItem> {
   items: T[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface BulkOperationStats {
@@ -403,11 +412,23 @@ export async function getRuntimePlaylists(): Promise<RuntimeListResponse<Runtime
   return apiFetch<RuntimeListResponse<RuntimePlaylist>>('/api/runtime/playlists');
 }
 
-export async function getRuntimeChannels(): Promise<RuntimeListResponse<RuntimeChannel>> {
-  return apiFetch<RuntimeListResponse<RuntimeChannel>>('/api/runtime/channels');
+export async function getRuntimeChannels(
+  params: { search?: string; filter?: string; enabled?: string; limit?: number; offset?: number } = {},
+): Promise<RuntimeListResponse<RuntimeChannel>> {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') {
+      query.set(key, String(value));
+    }
+  }
+
+  return apiFetch<RuntimeListResponse<RuntimeChannel>>(`/api/runtime/channels${query.toString() ? `?${query}` : ''}`);
 }
 
-export async function getRecentLogs(params: { scope?: RuntimeLogEntry['scope']; limit?: number } = {}): Promise<LogsResponse> {
+export async function getRecentLogs(
+  params: { scope?: RuntimeLogEntry['scope']; limit?: number; offset?: number } = {},
+): Promise<LogsResponse> {
   const query = new URLSearchParams();
 
   if (params.scope) {
@@ -416,6 +437,10 @@ export async function getRecentLogs(params: { scope?: RuntimeLogEntry['scope']; 
 
   if (params.limit) {
     query.set('limit', String(params.limit));
+  }
+
+  if (params.offset) {
+    query.set('offset', String(params.offset));
   }
 
   const suffix = query.toString() ? `?${query.toString()}` : '';
@@ -436,6 +461,10 @@ export async function listCatalog<T = CatalogItem>(
   }
 
   return apiFetch<CatalogListResponse<T>>(`/api/catalog/${entity}${query.toString() ? `?${query}` : ''}`);
+}
+
+export async function getCatalog<T = CatalogItem>(entity: CatalogEntity, id: string): Promise<T> {
+  return apiFetch<T>(`/api/catalog/${entity}/${id}`);
 }
 
 export async function createCatalog<T = CatalogItem>(

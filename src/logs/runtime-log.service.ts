@@ -35,12 +35,18 @@ export class RuntimeLogService {
     return entry;
   }
 
-  recent(scope?: RuntimeLogScope, limit = 200): RuntimeLogEntry[] {
+  recent(scope?: RuntimeLogScope, limit = 200, offset = 0): { items: RuntimeLogEntry[]; total: number; limit: number; offset: number } {
     this.prune();
 
     const filtered = scope ? this.entries.filter((entry) => entry.scope === scope) : this.entries;
+    const items = filtered.slice().reverse();
 
-    return filtered.slice(-limit).reverse();
+    return {
+      items: items.slice(offset, offset + limit),
+      total: items.length,
+      limit,
+      offset,
+    };
   }
 
   private prune(): void {

@@ -21,6 +21,7 @@ const { Prisma } = prismaClient;
 type PrismaDelegate = {
   findMany(args?: Record<string, unknown>): Promise<unknown[]>;
   findUnique(args: Record<string, unknown>): Promise<unknown | null>;
+  count(args?: Record<string, unknown>): Promise<number>;
   create(args: Record<string, unknown>): Promise<unknown>;
   update(args: Record<string, unknown>): Promise<unknown>;
   delete(args: Record<string, unknown>): Promise<unknown>;
@@ -39,17 +40,26 @@ export class CatalogService {
   async list(entity: CatalogEntity, query: CatalogListQuery) {
     const config = this.getConfig(entity);
     const where = this.buildWhere(config.searchableFields, query);
-
-    return {
-      items: await config.delegate.findMany({
+    const limit = this.parseLimit(query.limit);
+    const offset = this.parseOffset(query.offset);
+    const [items, total] = await Promise.all([
+      config.delegate.findMany({
         where,
         include: config.include,
         orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }].filter((item) =>
           this.hasPriority(entity) ? true : !('priority' in item),
         ),
-        take: this.parseLimit(query.limit),
-        skip: this.parseOffset(query.offset),
+        take: limit,
+        skip: offset,
       }),
+      config.delegate.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      limit,
+      offset,
     };
   }
 
@@ -433,23 +443,49 @@ export class CatalogService {
       providers: {
         delegate: this.prisma.provider,
         searchableFields: ['title', 'urlTemplate', 'matchPrefix', 'matchSuffix'],
+        include: { _count: { select: { streams: true } } },
       },
       streams: {
         delegate: this.prisma.stream,
         searchableFields: ['title', 'streamKey', 'directUrl'],
-        include: { provider: true },
+        include: { provider: true, _count: { select: { channelStreams: true } } },
       },
       channels: {
         delegate: this.prisma.channel,
         searchableFields: ['title', 'description'],
+        include: {
+          _count: {
+            select: {
+              playlistChannels: true,
+              channelStreams: true,
+              channelTimezones: true,
+            },
+          },
+        },
       },
       playlists: {
         delegate: this.prisma.playlist,
         searchableFields: ['title'],
+        include: {
+          _count: {
+            select: {
+              playlistChannels: true,
+              playlistTimezones: true,
+            },
+          },
+        },
       },
       timezones: {
         delegate: this.prisma.timezonePreset,
         searchableFields: ['timezone', 'label'],
+        include: {
+          _count: {
+            select: {
+              channelTimezones: true,
+              playlistTimezones: true,
+            },
+          },
+        },
       },
       'telegram-chats': {
         delegate: this.prisma.telegramChat,

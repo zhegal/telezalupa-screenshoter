@@ -252,6 +252,30 @@ Current validation rules:
 - Stream URLs and stream keys are not unique.
 - Timezone presets may share the same timezone with different labels.
 
+## Catalog UX
+
+Catalog lists use server-side pagination with `limit`, `offset`, `search`, and `enabled` filters. The UI supports page sizes of 50, 100, and 200 records and stores the selected page size in `localStorage`.
+
+Channel and Playlist editing is split into tabs:
+
+- Channel: `Основное`, `Потоки`, `Таймзоны`
+- Playlist: `Основное`, `Каналы`, `Таймзоны`
+
+Timezone presets are managed as a standalone dictionary in `/catalog/timezones`. Timezone attachments are managed from Channel or Playlist relation pages, not from the preset list itself.
+
+Relationship management uses full catalog pages instead of small modal controls:
+
+```txt
+/catalog/playlists/:id/channels
+/catalog/channels/:id/streams
+/catalog/channels/:id/timezones
+/catalog/playlists/:id/timezones
+```
+
+These pages provide search, checkboxes, selected count, attach, detach, and paginated option lists. Catalog rows show quick relation summaries such as stream/channel/timezone counts without opening relation pages.
+
+The JSON Import Wizard is linked from the Catalog section so import is treated as part of catalog maintenance.
+
 ## Bulk Catalog Tools
 
 The `/catalog` UI includes bulk tools for preparing the future database catalog. These tools do not import JSON and do not affect the active worker source. The worker still uses `data/playlists.json`.

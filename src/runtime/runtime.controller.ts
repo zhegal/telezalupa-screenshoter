@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { SessionAuthGuard } from '../common/guards/session-auth.guard.js';
 import { ChannelAvailabilityService } from '../channels/channel-availability.service.js';
 import { PlaylistLoaderService } from '../playlists/playlist-loader.service.js';
@@ -44,9 +44,15 @@ export class RuntimeController {
   }
 
   @Get('channels')
-  async channels() {
+  async channels(
+    @Query('search') search?: string,
+    @Query('enabled') enabled?: string,
+    @Query('filter') filter?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
     const urls = await this.playlistLoader.getPlaylistUrls();
-    const items = urls.flatMap((playlistUrl) => {
+    const allItems = urls.flatMap((playlistUrl) => {
       const state = this.playlistState.getPlaylistState(playlistUrl);
 
       return state.channels.map((channel) => {
@@ -71,10 +77,43 @@ export class RuntimeController {
         };
       });
     });
+    const query = search?.trim().toLowerCase() || '';
+    const filtered = allItems.filter((item) => {
+      const matchesSearch =
+        !query ||
+        item.title.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        item.playlistUrl.toLowerCase().includes(query);
+      const matchesEnabled =
+        enabled !== 'true' && enabled !== 'false' ? true : item.availableNow === (enabled === 'true');
+      const matchesFilter =
+        filter === 'errors'
+          ? Boolean(item.lastErrorAt || item.consecutiveFailures)
+          : filter === 'available'
+            ? item.availableNow
+            : true;
+
+      return matchesSearch && matchesEnabled && matchesFilter;
+    });
+    const parsedLimit = this.parseLimit(limit);
+    const parsedOffset = this.parseOffset(offset);
 
     return {
       source: 'json',
-      items,
+      items: filtered.slice(parsedOffset, parsedOffset + parsedLimit),
+      total: filtered.length,
+      limit: parsedLimit,
+      offset: parsedOffset,
     };
+  }
+
+  private parseLimit(value?: string): number {
+    const limit = Number(value);
+    return Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 50;
+  }
+
+  private parseOffset(value?: string): number {
+    const offset = Number(value);
+    return Number.isFinite(offset) && offset > 0 ? offset : 0;
   }
 }

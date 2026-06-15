@@ -17,23 +17,24 @@
         Match prefix/suffix используются только для import suggestions. Они не применяются
         автоматически.
       </p>
-      <div class="control-row">
-        <RouterLink class="ghost-button control-button" to="/catalog/import">
-          Open JSON Import Wizard
-        </RouterLink>
-      </div>
-
-      <div class="catalog-tabs">
-        <button
-          v-for="item in entityConfigs"
-          :key="item.entity"
-          class="ghost-button control-button"
-          :class="{ active: activeEntity === item.entity }"
-          type="button"
-          @click="selectEntity(item.entity)"
-        >
-          {{ item.label }}
-        </button>
+      <div class="catalog-subnav">
+        <div class="catalog-subnav-group">
+          <button
+            v-for="item in entityConfigs"
+            :key="item.entity"
+            class="ghost-button control-button"
+            :class="{ active: activeEntity === item.entity }"
+            type="button"
+            @click="selectEntity(item.entity)"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+        <div class="catalog-subnav-group">
+          <RouterLink class="ghost-button control-button" to="/catalog/import">
+            JSON Import Wizard
+          </RouterLink>
+        </div>
       </div>
     </section>
 
@@ -52,9 +53,9 @@
           class="filter-input"
           type="search"
           placeholder="Поиск"
-          @keydown.enter="loadItems"
+          @keydown.enter="applyFilters"
         />
-        <select v-model="enabledFilter" class="filter-input compact" @change="loadItems">
+        <select v-model="enabledFilter" class="filter-input compact" @change="applyFilters">
           <option value="">Все</option>
           <option value="true">Enabled</option>
           <option value="false">Disabled</option>
@@ -63,7 +64,7 @@
           class="ghost-button control-button"
           type="button"
           :disabled="loading"
-          @click="loadItems"
+          @click="applyFilters"
         >
           Обновить
         </button>
@@ -80,6 +81,7 @@
                 <th v-if="activeEntity === 'streams'">Bulk</th>
                 <th>Enabled</th>
                 <th>Details</th>
+                <th>Relations</th>
                 <th></th>
               </tr>
             </thead>
@@ -108,6 +110,9 @@
                   </span>
                 </td>
                 <td class="truncate">{{ detailText(item) }}</td>
+                <td>
+                  <span class="muted">{{ summaryText(item) }}</span>
+                </td>
                 <td class="row-actions">
                   <div class="row-actions__inner">
                     <button class="ghost-button" type="button" @click="startEdit(item)">
@@ -120,7 +125,7 @@
                 </td>
               </tr>
               <tr v-if="items.length === 0">
-                <td :colspan="activeEntity === 'streams' ? 5 : 4" class="empty-cell">
+                <td :colspan="activeEntity === 'streams' ? 6 : 5" class="empty-cell">
                   <div class="empty-state">
                     <span>Нет записей</span>
                     <button class="ghost-button control-button" type="button" @click="startCreate">
@@ -133,6 +138,14 @@
           </table>
         </div>
 
+        <PaginationControls
+          :total="total"
+          :offset="offset"
+          :page-size="pageSize"
+          @change-page="changePage"
+          @change-page-size="changePageSize"
+        />
+
         <form v-if="formVisible" class="catalog-form" @submit.prevent="saveForm">
           <div class="panel-header">
             <div>
@@ -144,81 +157,108 @@
             </button>
           </div>
 
-          <label v-for="field in currentConfig.fields" :key="field.name">
-            <span>{{ field.label }}</span>
-            <input
-              v-if="field.type === 'text' || field.type === 'number'"
-              :value="stringFormValue(field.name)"
-              :type="field.type"
-              :placeholder="field.placeholder || ''"
-              @input="setStringFormValue(field.name, ($event.target as HTMLInputElement).value)"
-            />
-            <textarea
-              v-else-if="field.type === 'textarea'"
-              :value="stringFormValue(field.name)"
-              :placeholder="field.placeholder || ''"
-              @input="setStringFormValue(field.name, ($event.target as HTMLTextAreaElement).value)"
-            />
-            <select
-              v-else-if="field.type === 'provider'"
-              :value="stringFormValue(field.name)"
-              @change="setStringFormValue(field.name, ($event.target as HTMLSelectElement).value)"
+          <div v-if="isTabbedEditor" class="editor-tabs">
+            <button
+              v-for="tab in editorTabs"
+              :key="tab"
+              class="ghost-button control-button"
+              :class="{ active: editorTab === tab }"
+              type="button"
+              @click="editorTab = tab"
             >
-              <option value="">Без Provider</option>
-              <option v-for="provider in providers" :key="provider.id" :value="provider.id">
-                {{ displayTitle(provider) }}
-              </option>
-            </select>
-            <label v-else class="toggle-line">
-              <input
-                :checked="Boolean(form[field.name])"
-                type="checkbox"
-                @change="form[field.name] = ($event.target as HTMLInputElement).checked"
-              />
-              <span>{{ form[field.name] ? 'Enabled' : 'Disabled' }}</span>
-            </label>
-          </label>
+              {{ tabLabel(tab) }}
+            </button>
+          </div>
 
-          <button class="action-button" type="submit" :disabled="saving">
+          <div v-if="editorTab === 'basic'" class="editor-tab-panel">
+            <label v-for="field in currentConfig.fields" :key="field.name">
+              <span>{{ field.label }}</span>
+              <input
+                v-if="field.type === 'text' || field.type === 'number'"
+                :value="stringFormValue(field.name)"
+                :type="field.type"
+                :placeholder="field.placeholder || ''"
+                @input="setStringFormValue(field.name, ($event.target as HTMLInputElement).value)"
+              />
+              <textarea
+                v-else-if="field.type === 'textarea'"
+                :value="stringFormValue(field.name)"
+                :placeholder="field.placeholder || ''"
+                @input="setStringFormValue(field.name, ($event.target as HTMLTextAreaElement).value)"
+              />
+              <select
+                v-else-if="field.type === 'provider'"
+                :value="stringFormValue(field.name)"
+                @change="setStringFormValue(field.name, ($event.target as HTMLSelectElement).value)"
+              >
+                <option value="">Без Provider</option>
+                <option v-for="provider in providers" :key="provider.id" :value="provider.id">
+                  {{ displayTitle(provider) }}
+                </option>
+              </select>
+              <label v-else class="toggle-line">
+                <input
+                  :checked="Boolean(form[field.name])"
+                  type="checkbox"
+                  @change="form[field.name] = ($event.target as HTMLInputElement).checked"
+                />
+                <span>{{ form[field.name] ? 'Enabled' : 'Disabled' }}</span>
+              </label>
+            </label>
+          </div>
+
+          <div v-else-if="editorTab === 'relations'" class="editor-tab-panel">
+            <div class="relation-summary">
+              <span v-for="part in relationSummaryParts(selected)" :key="part" class="pill level-info">{{ part }}</span>
+            </div>
+            <RouterLink
+              v-if="selected && activeEntity === 'channels'"
+              class="action-button"
+              :to="`/catalog/channels/${selected.id}/streams`"
+            >
+              Manage Streams
+            </RouterLink>
+            <RouterLink
+              v-if="selected && activeEntity === 'playlists'"
+              class="action-button"
+              :to="`/catalog/playlists/${selected.id}/channels`"
+            >
+              Manage Channels
+            </RouterLink>
+          </div>
+
+          <div v-else class="editor-tab-panel">
+            <p v-if="activeEntity === 'channels'" class="catalog-warning">
+              Если таймзоны канала не заданы, будут использоваться таймзоны плейлиста.
+            </p>
+            <p v-if="activeEntity === 'playlists'" class="catalog-warning">
+              Используются как fallback для каналов без собственных таймзон.
+            </p>
+            <div class="relation-summary">
+              <span v-for="part in timezoneSummaryParts(selected)" :key="part" class="pill level-info">{{ part }}</span>
+            </div>
+            <RouterLink
+              v-if="selected && activeEntity === 'channels'"
+              class="action-button"
+              :to="`/catalog/channels/${selected.id}/timezones`"
+            >
+              Manage Timezones
+            </RouterLink>
+            <RouterLink
+              v-if="selected && activeEntity === 'playlists'"
+              class="action-button"
+              :to="`/catalog/playlists/${selected.id}/timezones`"
+            >
+              Manage Timezones
+            </RouterLink>
+          </div>
+
+          <button v-if="editorTab === 'basic'" class="action-button" type="submit" :disabled="saving">
             {{ saving ? 'Сохранение...' : 'Сохранить' }}
           </button>
         </form>
       </div>
     </section>
-
-    <CatalogRelations
-      v-if="selected && activeEntity === 'channels'"
-      owner-type="channel"
-      :owner="selected"
-      :streams="streams"
-      :timezones="timezones"
-      @changed="loadRelationsAndOptions"
-    />
-
-    <CatalogRelations
-      v-if="selected && activeEntity === 'playlists'"
-      owner-type="playlist"
-      :owner="selected"
-      :channels="channels"
-      :timezones="timezones"
-      @changed="loadRelationsAndOptions"
-    />
-
-    <BulkRelationManager
-      v-if="selected && activeEntity === 'playlists'"
-      owner-type="playlist"
-      :owner="selected"
-      :options="channels"
-      @changed="loadRelationsAndOptions"
-    />
-
-    <BulkRelationManager
-      v-if="selected && activeEntity === 'channels'"
-      owner-type="channel"
-      :owner="selected"
-      :options="streams"
-      @changed="loadRelationsAndOptions"
-    />
 
     <StreamBulkTools
       v-if="activeEntity === 'streams'"
@@ -235,6 +275,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminLayout from '../../layouts/AdminLayout.vue';
+import PaginationControls from '../../components/PaginationControls.vue';
 import {
   createCatalog,
   deleteCatalog,
@@ -243,8 +284,6 @@ import {
   type CatalogEntity,
   type CatalogItem,
 } from '../../services/api';
-import BulkRelationManager from './BulkRelationManager.vue';
-import CatalogRelations from './CatalogRelations.vue';
 import StreamBulkTools from './StreamBulkTools.vue';
 
 type FieldType = 'text' | 'number' | 'textarea' | 'checkbox' | 'provider';
@@ -360,10 +399,24 @@ const editingId = ref<string | null>(null);
 const formVisible = ref(false);
 const form = reactive<Record<string, string | boolean>>({});
 const selectedStreamIds = reactive(new Set<string>());
+const total = ref(0);
+const offset = ref(0);
+const pageSize = ref(Number(localStorage.getItem('catalogPageSize') || 50));
+const editorTab = ref<'basic' | 'relations' | 'timezones'>('basic');
 
 const currentConfig = computed(
   () => entityConfigs.find((item) => item.entity === activeEntity.value) || entityConfigs[0],
 );
+const isTabbedEditor = computed(
+  () => Boolean(editingId.value) && (activeEntity.value === 'channels' || activeEntity.value === 'playlists'),
+);
+const editorTabs = computed(() => {
+  if (!isTabbedEditor.value) {
+    return ['basic'] as const;
+  }
+
+  return ['basic', 'relations', 'timezones'] as const;
+});
 
 onMounted(async () => {
   await Promise.all([loadItems(), loadRelationsAndOptions()]);
@@ -373,6 +426,7 @@ async function selectEntity(entity: CatalogEntity) {
   activeEntity.value = entity;
   search.value = '';
   enabledFilter.value = '';
+  offset.value = 0;
   selected.value = null;
   hideForm();
   clearStreamSelection();
@@ -387,9 +441,11 @@ async function loadItems() {
     const response = await listCatalog(activeEntity.value, {
       search: search.value,
       enabled: enabledFilter.value,
-      limit: 100,
+      limit: pageSize.value,
+      offset: offset.value,
     });
     items.value = response.items;
+    total.value = response.total;
 
     if (selected.value) {
       selected.value = items.value.find((item) => item.id === selected.value?.id) || null;
@@ -399,6 +455,11 @@ async function loadItems() {
   } finally {
     loading.value = false;
   }
+}
+
+async function applyFilters() {
+  offset.value = 0;
+  await loadItems();
 }
 
 async function loadRelationsAndOptions() {
@@ -418,6 +479,7 @@ async function loadRelationsAndOptions() {
 function startCreate() {
   editingId.value = null;
   selected.value = null;
+  editorTab.value = 'basic';
   resetForm();
   formVisible.value = true;
 }
@@ -425,6 +487,7 @@ function startCreate() {
 function startEdit(item: CatalogItem) {
   selected.value = item;
   editingId.value = item.id;
+  editorTab.value = 'basic';
   resetForm(item);
   formVisible.value = true;
 }
@@ -433,6 +496,7 @@ function hideForm() {
   formVisible.value = false;
   editingId.value = null;
   selected.value = null;
+  editorTab.value = 'basic';
 }
 
 async function saveForm() {
@@ -573,6 +637,18 @@ async function handleStreamBulkChanged() {
   await Promise.all([loadItems(), loadRelationsAndOptions()]);
 }
 
+async function changePage(nextOffset: number) {
+  offset.value = nextOffset;
+  await loadItems();
+}
+
+async function changePageSize(nextPageSize: number) {
+  pageSize.value = nextPageSize;
+  localStorage.setItem('catalogPageSize', String(nextPageSize));
+  offset.value = 0;
+  await loadItems();
+}
+
 function detailText(item: CatalogItem) {
   if ('urlTemplate' in item)
     return `${item.urlTemplate || ''} ${item.matchPrefix || ''} ${item.matchSuffix || ''}`.trim();
@@ -582,5 +658,64 @@ function detailText(item: CatalogItem) {
   if ('chatId' in item) return String(item.chatId || '');
   if ('template' in item) return String(item.template || '').slice(0, 120);
   return `priority: ${item.priority ?? 0}`;
+}
+
+function summaryText(item: CatalogItem) {
+  return relationSummaryParts(item).concat(timezoneSummaryParts(item)).join(' · ') || '—';
+}
+
+function relationSummaryParts(item: CatalogItem | null) {
+  const count = item?._count as Record<string, number> | undefined;
+
+  if (!count) {
+    return [];
+  }
+
+  if (activeEntity.value === 'channels') {
+    return [`Streams: ${count.channelStreams ?? 0}`, `Playlists: ${count.playlistChannels ?? 0}`];
+  }
+
+  if (activeEntity.value === 'playlists') {
+    return [`Channels: ${count.playlistChannels ?? 0}`];
+  }
+
+  if (activeEntity.value === 'streams') {
+    return [`Channels: ${count.channelStreams ?? 0}`];
+  }
+
+  if (activeEntity.value === 'providers') {
+    return [`Streams: ${count.streams ?? 0}`];
+  }
+
+  return [];
+}
+
+function timezoneSummaryParts(item: CatalogItem | null) {
+  const count = item?._count as Record<string, number> | undefined;
+
+  if (!count) {
+    return [];
+  }
+
+  if (activeEntity.value === 'channels') {
+    return [`Timezones: ${count.channelTimezones ?? 0}`];
+  }
+
+  if (activeEntity.value === 'playlists') {
+    return [`Timezones: ${count.playlistTimezones ?? 0}`];
+  }
+
+  if (activeEntity.value === 'timezones') {
+    return [`Channels: ${count.channelTimezones ?? 0}`, `Playlists: ${count.playlistTimezones ?? 0}`];
+  }
+
+  return [];
+}
+
+function tabLabel(tab: 'basic' | 'relations' | 'timezones') {
+  if (tab === 'basic') return 'Основное';
+  if (activeEntity.value === 'channels' && tab === 'relations') return 'Потоки';
+  if (activeEntity.value === 'playlists' && tab === 'relations') return 'Каналы';
+  return 'Таймзоны';
 }
 </script>

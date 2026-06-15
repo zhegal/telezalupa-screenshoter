@@ -9,11 +9,14 @@ export class LogsController {
   constructor(@Inject(RuntimeLogService) private readonly logs: RuntimeLogService) {}
 
   @Get('recent')
-  recent(@Query('scope') scope?: RuntimeLogScope, @Query('limit') limit?: string) {
+  recent(@Query('scope') scope?: RuntimeLogScope, @Query('limit') limit?: string, @Query('offset') offset?: string) {
     const parsedLimit = Number(limit);
+    const parsedOffset = Number(offset);
 
-    return {
-      items: this.logs.recent(scope, Number.isFinite(parsedLimit) ? parsedLimit : undefined),
-    };
+    return this.logs.recent(
+      scope,
+      Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 200) : undefined,
+      Number.isFinite(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0,
+    );
   }
 }
