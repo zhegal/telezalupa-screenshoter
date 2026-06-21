@@ -100,6 +100,16 @@ export class CatalogService {
   }
 
   async delete(entity: CatalogEntity, id: string) {
+    if (entity === 'playlists') {
+      await this.deleteOwnedPlaylist(id);
+      return { ok: true };
+    }
+
+    if (entity === 'channels') {
+      await this.deleteOwnedChannel(id);
+      return { ok: true };
+    }
+
     const config = this.getConfig(entity);
 
     try {
@@ -116,10 +126,100 @@ export class CatalogService {
     return {
       items: await this.prisma.playlistChannel.findMany({
         where: { playlistId },
-        include: { channel: true },
+        include: {
+          channel: {
+            include: {
+              _count: { select: { channelStreams: true, channelTimezones: true } },
+            },
+          },
+        },
         orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
       }),
     };
+  }
+
+  async createPlaylistOwnedChannel(playlistId: string, body: Record<string, unknown>) {
+    await this.ensureExists(this.prisma.playlist, playlistId, 'Playlist not found');
+    const streamData = this.normalizeOwnedStreamData(body);
+    const timezonePresetIds = this.uniqueOptionalIds(body.timezonePresetIds);
+
+    return this.prisma.$transaction(async (tx) => {
+      const channel = await tx.channel.create({
+        data: {
+          title: this.requiredString(body.title, 'title'),
+          description: this.normalizeOptionalString(body.description),
+          enabled: this.booleanOrDefault(body.enabled, true),
+        },
+      });
+      const stream = await tx.stream.create({
+        data: {
+          title: `${channel.title} stream`,
+          providerId: streamData.providerId,
+          streamKey: streamData.streamKey,
+          directUrl: streamData.directUrl,
+          userAgent: streamData.userAgent,
+          enabled: true,
+          priority: 0,
+        },
+      });
+
+      await tx.playlistChannel.create({ data: { playlistId, channelId: channel.id, enabled: true, priority: 0 } });
+      await tx.channelStream.create({ data: { channelId: channel.id, streamId: stream.id, enabled: true, priority: 0 } });
+
+      if (timezonePresetIds.length > 0) {
+        await tx.channelTimezone.createMany({
+          data: timezonePresetIds.map((timezonePresetId, index) => ({
+            channelId: channel.id,
+            timezonePresetId,
+            priority: index,
+          })),
+        });
+      }
+
+      return tx.playlistChannel.findFirst({
+        where: { playlistId, channelId: channel.id },
+        include: { channel: { include: { _count: { select: { channelStreams: true, channelTimezones: true } } } } },
+      });
+    });
+  }
+
+  async bulkDeletePlaylistOwnedChannels(playlistId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
+    const channelIds = this.uniqueIds(body.channelIds);
+
+    for (const channelId of channelIds) {
+      await this.deletePlaylistOwnedChannel(playlistId, channelId);
+    }
+
+    return { requested: channelIds.length, deleted: channelIds.length, skipped: 0, failed: 0 };
+  }
+
+  async deletePlaylistOwnedChannel(playlistId: string, channelId: string) {
+    await this.ensurePlaylistChannel(playlistId, channelId);
+    await this.deleteOwnedChannel(channelId);
+    return { ok: true };
+  }
+
+  async copyPlaylistOwnedChannel(playlistId: string, channelId: string, body: Record<string, unknown>) {
+    await this.ensurePlaylistChannel(playlistId, channelId);
+    const targetPlaylistId = this.requiredString(body.targetPlaylistId || playlistId, 'targetPlaylistId');
+    await this.ensureExists(this.prisma.playlist, targetPlaylistId, 'Target playlist not found');
+    const source = await this.getChannelForClone(channelId);
+
+    return this.cloneChannelToPlaylist(source, targetPlaylistId);
+  }
+
+  async movePlaylistOwnedChannel(playlistId: string, channelId: string, body: Record<string, unknown>) {
+    await this.ensurePlaylistChannel(playlistId, channelId);
+    const targetPlaylistId = this.requiredString(body.targetPlaylistId, 'targetPlaylistId');
+    await this.ensureExists(this.prisma.playlist, targetPlaylistId, 'Target playlist not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.playlistChannel.deleteMany({ where: { playlistId, channelId } });
+      await tx.playlistChannel.deleteMany({ where: { playlistId: targetPlaylistId, channelId } });
+      await tx.playlistChannel.create({ data: { playlistId: targetPlaylistId, channelId, enabled: true, priority: 0 } });
+    });
+
+    return { ok: true };
   }
 
   async addPlaylistChannel(playlistId: string, body: CatalogRelationBody) {
@@ -205,6 +305,39 @@ export class CatalogService {
         orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
       }),
     };
+  }
+
+  async createChannelOwnedStream(channelId: string, body: Record<string, unknown>) {
+    await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
+    const streamData = this.normalizeOwnedStreamData(body);
+
+    return this.prisma.$transaction(async (tx) => {
+      const stream = await tx.stream.create({
+        data: {
+          title: this.normalizeOptionalString(body.title) || 'Stream',
+          providerId: streamData.providerId,
+          streamKey: streamData.streamKey,
+          directUrl: streamData.directUrl,
+          userAgent: streamData.userAgent,
+          enabled: true,
+          priority: this.numberOrDefault(body.priority, 0),
+        },
+      });
+
+      return tx.channelStream.create({
+        data: { channelId, streamId: stream.id, enabled: true, priority: this.numberOrDefault(body.priority, 0) },
+        include: { stream: { include: { provider: true } } },
+      });
+    });
+  }
+
+  async deleteChannelOwnedStream(channelId: string, streamId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.channelStream.deleteMany({ where: { channelId, streamId } });
+      await tx.stream.delete({ where: { id: streamId } });
+    });
+
+    return { ok: true };
   }
 
   async addChannelStream(channelId: string, body: CatalogRelationBody) {
@@ -442,7 +575,7 @@ export class CatalogService {
     const configs: Record<CatalogEntity, EntityConfig> = {
       providers: {
         delegate: this.prisma.provider,
-        searchableFields: ['title', 'urlTemplate', 'matchPrefix', 'matchSuffix'],
+        searchableFields: ['title', 'urlTemplate'],
         include: { _count: { select: { streams: true } } },
       },
       streams: {
@@ -512,15 +645,12 @@ export class CatalogService {
     partial = false,
   ): Record<string, unknown> {
     if (entity === 'providers') {
-      const data = this.pick(body, ['title', 'urlTemplate', 'matchPrefix', 'matchSuffix', 'enabled'], partial);
+      const data = this.pick(body, ['title', 'urlTemplate', 'enabled'], partial);
       const template = data.urlTemplate;
 
       if (typeof template === 'string' && !template.includes('{streamKey}')) {
         throw new BadRequestException('Provider urlTemplate must contain {streamKey}');
       }
-
-      data.matchPrefix = this.normalizeOptionalString(data.matchPrefix);
-      data.matchSuffix = this.normalizeOptionalString(data.matchSuffix);
 
       return data;
     }
@@ -675,6 +805,145 @@ export class CatalogService {
 
   private booleanOrDefault(value: unknown, fallback: boolean): boolean {
     return typeof value === 'boolean' ? value : fallback;
+  }
+
+  private normalizeOwnedStreamData(body: Record<string, unknown>) {
+    const streamType = typeof body.streamType === 'string' ? body.streamType : 'direct';
+    const userAgent = this.normalizeOptionalString(body.userAgent);
+
+    if (streamType === 'provider') {
+      const providerId = this.requiredString(body.providerId, 'providerId');
+      const streamKey = this.requiredString(body.streamKey, 'streamKey');
+      return { providerId, streamKey, directUrl: null, userAgent };
+    }
+
+    return {
+      providerId: null,
+      streamKey: null,
+      directUrl: this.requiredString(body.directUrl, 'directUrl'),
+      userAgent,
+    };
+  }
+
+  private uniqueOptionalIds(ids: unknown): string[] {
+    if (!Array.isArray(ids)) {
+      return [];
+    }
+
+    return Array.from(new Set(ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)));
+  }
+
+  private async ensurePlaylistChannel(playlistId: string, channelId: string): Promise<void> {
+    const relation = await this.prisma.playlistChannel.findFirst({ where: { playlistId, channelId } });
+
+    if (!relation) {
+      throw new NotFoundException('Playlist channel not found');
+    }
+  }
+
+  private async deleteOwnedChannel(channelId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const streams = await tx.channelStream.findMany({ where: { channelId }, select: { streamId: true } });
+      const streamIds = streams.map((stream) => stream.streamId);
+
+      await tx.channelTimezone.deleteMany({ where: { channelId } });
+      await tx.channelStream.deleteMany({ where: { channelId } });
+      await tx.playlistChannel.deleteMany({ where: { channelId } });
+
+      if (streamIds.length > 0) {
+        await tx.stream.deleteMany({ where: { id: { in: streamIds } } });
+      }
+
+      await tx.channel.delete({ where: { id: channelId } });
+    });
+  }
+
+  private async deleteOwnedPlaylist(playlistId: string): Promise<void> {
+    const relations = await this.prisma.playlistChannel.findMany({
+      where: { playlistId },
+      select: { channelId: true },
+    });
+
+    for (const relation of relations) {
+      await this.deleteOwnedChannel(relation.channelId);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.playlistTimezone.deleteMany({ where: { playlistId } });
+      await tx.playlist.delete({ where: { id: playlistId } });
+    });
+  }
+
+  private async getChannelForClone(channelId: string) {
+    const source = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      include: {
+        channelStreams: { include: { stream: true }, orderBy: [{ priority: 'asc' }] },
+        channelTimezones: { orderBy: [{ priority: 'asc' }] },
+      },
+    });
+
+    if (!source) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    return source;
+  }
+
+  private async cloneChannelToPlaylist(
+    source: Awaited<ReturnType<CatalogService['getChannelForClone']>>,
+    playlistId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const channel = await tx.channel.create({
+        data: {
+          title: `${source.title} copy`,
+          description: source.description,
+          enabled: source.enabled,
+          defaultDelaySeconds: source.defaultDelaySeconds,
+          defaultScale: source.defaultScale,
+        },
+      });
+
+      await tx.playlistChannel.create({ data: { playlistId, channelId: channel.id, enabled: true, priority: 0 } });
+
+      for (const relation of source.channelStreams) {
+        const stream = await tx.stream.create({
+          data: {
+            title: relation.stream.title,
+            providerId: relation.stream.providerId,
+            streamKey: relation.stream.streamKey,
+            directUrl: relation.stream.directUrl,
+            userAgent: relation.stream.userAgent,
+            enabled: relation.stream.enabled,
+            priority: relation.stream.priority,
+          },
+        });
+        await tx.channelStream.create({
+          data: {
+            channelId: channel.id,
+            streamId: stream.id,
+            enabled: relation.enabled,
+            priority: relation.priority,
+          },
+        });
+      }
+
+      if (source.channelTimezones.length > 0) {
+        await tx.channelTimezone.createMany({
+          data: source.channelTimezones.map((timezone) => ({
+            channelId: channel.id,
+            timezonePresetId: timezone.timezonePresetId,
+            priority: timezone.priority,
+          })),
+        });
+      }
+
+      return tx.playlistChannel.findFirst({
+        where: { playlistId, channelId: channel.id },
+        include: { channel: { include: { _count: { select: { channelStreams: true, channelTimezones: true } } } } },
+      });
+    });
   }
 
   private normalizeRelationData(body: CatalogRelationBody): Record<string, unknown> {

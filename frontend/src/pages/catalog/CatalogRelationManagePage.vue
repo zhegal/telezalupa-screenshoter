@@ -3,7 +3,7 @@
     <section class="panel wide-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Catalog relations</p>
+          <p class="eyebrow">Catalog management</p>
           <h2>{{ title }}</h2>
         </div>
         <RouterLink class="ghost-button control-button" to="/catalog">Назад в Catalog</RouterLink>
@@ -19,13 +19,13 @@
       <div class="filter-row">
         <input v-model="search" class="filter-input" type="search" placeholder="Поиск" @keydown.enter="loadOptions" />
         <button class="ghost-button control-button" type="button" @click="loadOptions">Найти</button>
-        <button class="ghost-button control-button" type="button" @click="selectVisible">Select visible</button>
-        <button class="ghost-button control-button" type="button" @click="selectedIds.clear()">Clear</button>
+        <button class="ghost-button control-button" type="button" @click="selectVisible">Выбрать видимые</button>
+        <button class="ghost-button control-button" type="button" @click="selectedIds.clear()">Очистить</button>
         <button class="action-button" type="button" :disabled="selectedIds.size === 0 || loading" @click="attachSelected">
-          Attach
+          {{ addActionLabel }}
         </button>
         <button class="ghost-button control-button danger" type="button" :disabled="selectedIds.size === 0 || loading" @click="detachSelected">
-          Detach
+          {{ deleteActionLabel }}
         </button>
         <span class="pill level-info">{{ selectedIds.size }} selected</span>
       </div>
@@ -35,7 +35,7 @@
 
       <div class="relation-grid">
         <div class="relation-block">
-          <h3>Available</h3>
+          <h3>Доступные для добавления</h3>
           <div class="bulk-list">
             <label v-for="item in options" :key="item.id" class="bulk-option">
               <input
@@ -59,7 +59,7 @@
         </div>
 
         <div class="relation-block">
-          <h3>Attached</h3>
+          <h3>Текущие</h3>
           <div class="table-wrap">
             <table class="runtime-table compact-table">
               <thead>
@@ -83,7 +83,7 @@
                   </td>
                 </tr>
                 <tr v-if="relations.length === 0">
-                  <td :colspan="isTimezoneMode ? 2 : 3" class="empty-cell">Нет связей</td>
+                  <td :colspan="isTimezoneMode ? 2 : 3" class="empty-cell">Нет записей</td>
                 </tr>
               </tbody>
             </table>
@@ -104,8 +104,10 @@ import {
   bulkAttachPlaylistChannels,
   bulkDetachChannelStreams,
   bulkDetachPlaylistChannels,
+  bulkDeletePlaylistOwnedChannels,
   createCatalogRelation,
   deleteCatalogRelation,
+  deleteChannelOwnedStream,
   getCatalog,
   listCatalog,
   listCatalogRelation,
@@ -132,7 +134,22 @@ const ownerEntity = computed<CatalogEntity>(() => ownerKind.value);
 const optionEntity = computed<CatalogEntity>(() => (relationKind.value === 'timezones' ? 'timezones' : relationKind.value));
 const isTimezoneMode = computed(() => relationKind.value === 'timezones');
 const relationPath = computed(() => `${ownerKind.value}/${route.params.id}/${relationKind.value}`);
-const title = computed(() => `Manage ${relationKind.value}: ${owner.value ? displayTitle(owner.value) : route.params.id}`);
+const title = computed(() => `${relationTitleLabel.value}: ${owner.value ? displayTitle(owner.value) : route.params.id}`);
+const relationTitleLabel = computed(() => {
+  if (relationKind.value === 'channels') return 'Каналы';
+  if (relationKind.value === 'streams') return 'Потоки';
+  return 'Таймзоны';
+});
+const addActionLabel = computed(() => {
+  if (relationKind.value === 'channels') return 'Добавить канал';
+  if (relationKind.value === 'streams') return 'Добавить поток';
+  return 'Добавить таймзону';
+});
+const deleteActionLabel = computed(() => {
+  if (relationKind.value === 'channels') return 'Удалить канал';
+  if (relationKind.value === 'streams') return 'Удалить поток';
+  return 'Удалить таймзону';
+});
 
 onMounted(() => {
   void refresh();
@@ -201,22 +218,26 @@ async function runRelationAction(action: 'attach' | 'detach') {
       const stats =
         action === 'attach'
           ? await bulkAttachPlaylistChannels(String(route.params.id), ids)
-          : await bulkDetachPlaylistChannels(String(route.params.id), ids);
+          : await bulkDeletePlaylistOwnedChannels(String(route.params.id), ids);
       message.value = formatStats(stats);
     } else if (ownerKind.value === 'channels' && relationKind.value === 'streams') {
-      const stats =
-        action === 'attach'
-          ? await bulkAttachChannelStreams(String(route.params.id), ids)
-          : await bulkDetachChannelStreams(String(route.params.id), ids);
-      message.value = formatStats(stats);
+      if (action === 'attach') {
+        const stats = await bulkAttachChannelStreams(String(route.params.id), ids);
+        message.value = formatStats(stats);
+      } else {
+        for (const id of ids) {
+          await deleteChannelOwnedStream(String(route.params.id), id);
+        }
+        message.value = `deleted: ${ids.length}`;
+      }
     } else if (action === 'attach') {
       for (const id of ids) {
         await createCatalogRelation(relationPath.value, { timezonePresetId: id });
       }
-      message.value = `attached: ${ids.length}`;
+      message.value = `added: ${ids.length}`;
     } else {
       await detachTimezoneIds(ids);
-      message.value = `detached: ${ids.length}`;
+      message.value = `removed: ${ids.length}`;
     }
 
     selectedIds.clear();

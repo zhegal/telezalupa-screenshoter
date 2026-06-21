@@ -47,10 +47,7 @@ export class SourceSettingsService {
     }
 
     const json = await this.getJsonStatus();
-    const source: ChannelSource = json.sourceAvailable ? 'json' : 'database';
-    await this.persistActiveChannelSource(source);
-
-    return source;
+    return json.sourceAvailable ? 'json' : 'database';
   }
 
   async setActiveChannelSource(source: ChannelSource): Promise<SourceStatus> {

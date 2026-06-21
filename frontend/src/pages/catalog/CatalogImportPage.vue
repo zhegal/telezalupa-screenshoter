@@ -6,11 +6,10 @@
           <p class="eyebrow">JSON Import Wizard</p>
           <h2>Импорт JSON в Database Catalog</h2>
         </div>
-        <span class="pill level-warn">Worker still uses data/playlists.json</span>
       </div>
 
       <p class="catalog-warning">
-        Импорт всегда проходит через preview. Он наполняет PostgreSQL catalog, но не переключает worker на БД.
+        Импорт всегда проходит через preview и наполняет PostgreSQL catalog. Активный источник worker управляется отдельно в Settings -> Sources.
       </p>
 
       <div class="catalog-tabs">

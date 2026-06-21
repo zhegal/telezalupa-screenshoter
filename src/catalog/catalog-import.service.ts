@@ -35,10 +35,8 @@ export class CatalogImportService {
     const [providers, timezonePresets, duplicateKeys] = await Promise.all([
       this.prisma.provider.findMany({
         where: {
-          OR: [
-            { matchPrefix: { not: null } },
-            { matchSuffix: { not: null } },
-          ],
+          enabled: true,
+          urlTemplate: { contains: '{streamKey}' },
         },
       }),
       this.prisma.timezonePreset.findMany({ select: { timezone: true, label: true } }),
@@ -242,7 +240,7 @@ export class CatalogImportService {
   private buildPreviewRow(
     channel: Channel,
     index: number,
-    providers: Array<{ id: string; title: string; matchPrefix: string | null; matchSuffix: string | null }>,
+    providers: Array<{ id: string; title: string; urlTemplate: string }>,
     timezoneKeys: Set<string>,
     duplicateKeys: Set<string>,
     skipDuplicates: boolean,
@@ -284,14 +282,13 @@ export class CatalogImportService {
 
   private findProviderCandidates(
     url: string,
-    providers: Array<{ id: string; title: string; matchPrefix: string | null; matchSuffix: string | null }>,
+    providers: Array<{ id: string; title: string; urlTemplate: string }>,
   ): ImportProviderCandidate[] {
     return providers
       .map((provider) => {
-        const prefix = provider.matchPrefix || '';
-        const suffix = provider.matchSuffix || '';
+        const [prefix, suffix] = provider.urlTemplate.split('{streamKey}');
 
-        if (!prefix && !suffix) {
+        if (suffix === undefined) {
           return null;
         }
 

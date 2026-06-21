@@ -134,6 +134,8 @@ export interface SourceSwitchResponse {
 }
 
 export interface RuntimePlaylist {
+  id?: string;
+  title?: string;
   url: string;
   loaded: boolean;
   loading: boolean;
@@ -145,6 +147,9 @@ export interface RuntimePlaylist {
 }
 
 export interface RuntimeChannel {
+  playlistId?: string;
+  playlistTitle?: string;
+  channelId?: string;
   playlistUrl: string;
   title: string;
   description: string;
@@ -521,6 +526,64 @@ export async function updateCatalogRelation<T = CatalogItem>(
 
 export async function deleteCatalogRelation(path: string, relationId: string): Promise<{ ok: boolean }> {
   return apiFetch<{ ok: boolean }>(`/api/catalog/${path}/${relationId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function createPlaylistOwnedChannel(playlistId: string, payload: Record<string, unknown>): Promise<CatalogItem> {
+  return apiFetch<CatalogItem>(`/api/catalog/playlists/${playlistId}/channels/owned`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deletePlaylistOwnedChannel(playlistId: string, channelId: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/catalog/playlists/${playlistId}/channels/${channelId}/owned`, {
+    method: 'DELETE',
+  });
+}
+
+export async function bulkDeletePlaylistOwnedChannels(
+  playlistId: string,
+  channelIds: string[],
+): Promise<BulkOperationStats> {
+  return apiFetch<BulkOperationStats>(`/api/catalog/playlists/${playlistId}/channels/bulk-delete-owned`, {
+    method: 'POST',
+    body: JSON.stringify({ channelIds }),
+  });
+}
+
+export async function copyPlaylistOwnedChannel(
+  playlistId: string,
+  channelId: string,
+  targetPlaylistId: string,
+): Promise<CatalogItem> {
+  return apiFetch<CatalogItem>(`/api/catalog/playlists/${playlistId}/channels/${channelId}/copy`, {
+    method: 'POST',
+    body: JSON.stringify({ targetPlaylistId }),
+  });
+}
+
+export async function movePlaylistOwnedChannel(
+  playlistId: string,
+  channelId: string,
+  targetPlaylistId: string,
+): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/catalog/playlists/${playlistId}/channels/${channelId}/move`, {
+    method: 'POST',
+    body: JSON.stringify({ targetPlaylistId }),
+  });
+}
+
+export async function createChannelOwnedStream(channelId: string, payload: Record<string, unknown>): Promise<CatalogItem> {
+  return apiFetch<CatalogItem>(`/api/catalog/channels/${channelId}/streams/owned`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteChannelOwnedStream(channelId: string, streamId: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/catalog/channels/${channelId}/streams/${streamId}/owned`, {
     method: 'DELETE',
   });
 }

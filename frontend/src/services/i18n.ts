@@ -29,7 +29,7 @@ export const messages = {
     telegramId: 'Telegram ID',
     notFound: 'Страница не найдена',
     futureSections: 'Runtime',
-    mobileHint: 'Worker продолжает читать каналы из data/playlists.json. Управление данными через БД будет отдельным этапом.',
+    mobileHint: 'Worker использует активный источник из Settings: JSON или PostgreSQL catalog.',
     sections: {
       worker: 'Worker',
       telegram: 'Telegram',
@@ -43,9 +43,9 @@ export const messages = {
     sectionDescriptions: {
       worker: 'Старт, стоп, рестарт и состояние фонового цикла.',
       telegram: 'Чаты, отправки, message id, реакции и статистика.',
-      playlists: 'Read-only runtime источники из data/playlists.json.',
-      channels: 'Read-only каналы из загруженных JSON-плейлистов.',
-      catalog: 'Будущий database catalog: providers, streams, channels, playlists.',
+      playlists: 'Read-only runtime плейлисты из активного источника.',
+      channels: 'Read-only runtime каналы из активного источника.',
+      catalog: 'PostgreSQL catalog: providers, streams, channels, playlists.',
       import: 'JSON Import Wizard с preview перед записью в PostgreSQL.',
       logs: 'Последние runtime события worker, playlist, ffmpeg и Telegram.',
       settings: 'Runtime-конфиги, ffmpeg, интервалы и системные параметры.',

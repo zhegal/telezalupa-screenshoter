@@ -372,6 +372,26 @@ button {
   line-height: 1.45;
 }
 
+.details-cell {
+  min-width: 260px;
+  max-width: 560px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.table-link {
+  color: #dcebe7;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.table-link:hover {
+  color: #b8f8df;
+  text-decoration: underline;
+}
+
 .sections-block {
   margin-top: 28px;
 }
@@ -657,6 +677,13 @@ button {
   line-height: 1.2;
 }
 
+.form-section-description {
+  margin: -4px 0 0;
+  color: #8ca39c;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .form-section-fields {
   display: grid;
   gap: 12px;
@@ -720,6 +747,28 @@ button {
   margin-left: 8px;
 }
 
+.row-actions__inner--grouped {
+  gap: 0;
+}
+
+.row-actions__inner--grouped .control-button {
+  height: 34px;
+  min-height: 34px;
+  border-radius: 0;
+}
+
+.row-actions__inner--grouped .control-button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.row-actions__inner--grouped .control-button:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.row-actions__inner--grouped .control-button+.control-button {
+  margin-left: -1px;
+}
+
 .relation-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -748,6 +797,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 18px;
 }
 
 .editor-tab-panel {
@@ -859,6 +909,74 @@ button {
 
 .filter-input.compact {
   min-width: 180px;
+}
+
+.playlist-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.playlist-list-stats,
+.bulk-actions-bar,
+.bulk-actions-buttons,
+.bulk-actions-count {
+  display: inline-flex;
+  align-items: center;
+}
+
+.playlist-list-stats {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bulk-actions-bar {
+  gap: 0;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.bulk-actions-count {
+  align-self: stretch;
+  gap: 8px;
+  padding: 0 12px;
+  color: #b8f8df;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bulk-actions-count input,
+.select-column input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.bulk-actions-buttons {
+  gap: 0;
+  align-self: stretch;
+}
+
+.bulk-actions-buttons .control-button {
+  height: 100%;
+  min-height: 38px;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
+}
+
+.runtime-table .select-column,
+.playlist-channel-table .select-column {
+  width: 44px;
+  text-align: center;
 }
 
 .table-wrap {

@@ -116,6 +116,8 @@ export class DatabasePlaylistSelectorService {
       ).length;
 
       return {
+        id: playlist.id,
+        title: playlist.title,
         url: `database:${playlist.id}:${playlist.title}`,
         loaded: true,
         loading: false,
@@ -153,7 +155,7 @@ export class DatabasePlaylistSelectorService {
                     enabled: true,
                     stream: {
                       enabled: true,
-                      OR: [{ providerId: null }, { provider: { enabled: true } }],
+                      OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
                     },
                   },
                   include: {
@@ -183,6 +185,9 @@ export class DatabasePlaylistSelectorService {
         );
 
         return {
+          playlistId: playlist.id,
+          playlistTitle: playlist.title,
+          channelId: relation.channel.id,
           playlistUrl: `database:${playlist.id}:${playlist.title}`,
           title: channel.title,
           description: channel.description,
@@ -214,7 +219,7 @@ export class DatabasePlaylistSelectorService {
                   enabled: true,
                   stream: {
                     enabled: true,
-                    OR: [{ providerId: null }, { provider: { enabled: true } }],
+                    OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
                   },
                 },
               },
@@ -244,7 +249,7 @@ export class DatabasePlaylistSelectorService {
                     enabled: true,
                     stream: {
                       enabled: true,
-                      OR: [{ providerId: null }, { provider: { enabled: true } }],
+                      OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
                     },
                   },
                   include: {
@@ -286,6 +291,88 @@ export class DatabasePlaylistSelectorService {
     for (const [id, snapshot] of nextSnapshots) {
       this.snapshots.set(id, snapshot);
     }
+  }
+
+  async getDiagnostics() {
+    const [
+      playlists,
+      enabledPlaylists,
+      channels,
+      enabledChannels,
+      streams,
+      enabledStreams,
+      enabledPlaylistLinks,
+      enabledChannelStreamLinks,
+      runnablePlaylists,
+    ] = await Promise.all([
+      this.prisma.playlist.count(),
+      this.prisma.playlist.count({ where: { enabled: true } }),
+      this.prisma.channel.count(),
+      this.prisma.channel.count({ where: { enabled: true } }),
+      this.prisma.stream.count(),
+      this.prisma.stream.count({ where: { enabled: true } }),
+      this.prisma.playlistChannel.count({
+        where: {
+          enabled: true,
+          playlist: { enabled: true },
+          channel: { enabled: true },
+        },
+      }),
+      this.prisma.channelStream.count({
+        where: {
+          enabled: true,
+          channel: { enabled: true },
+          stream: {
+            enabled: true,
+            OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
+          },
+        },
+      }),
+      this.prisma.playlist.count({
+        where: {
+          enabled: true,
+          playlistChannels: {
+            some: {
+              enabled: true,
+              channel: {
+                enabled: true,
+                channelStreams: {
+                  some: {
+                    enabled: true,
+                    stream: {
+                      enabled: true,
+                      OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+    const loadedPlaylists = this.snapshots.size;
+    const loadedChannels = Array.from(this.snapshots.values()).reduce((total, snapshot) => total + snapshot.channels.length, 0);
+    const availableChannels = Array.from(this.snapshots.values()).reduce(
+      (total, snapshot) =>
+        total + snapshot.channels.filter((channel) => this.channelAvailability.isAvailableNow(channel)).length,
+      0,
+    );
+
+    return {
+      playlists,
+      enabledPlaylists,
+      channels,
+      enabledChannels,
+      streams,
+      enabledStreams,
+      enabledPlaylistLinks,
+      enabledChannelStreamLinks,
+      runnablePlaylists,
+      loadedPlaylists,
+      loadedChannels,
+      availableChannels,
+    };
   }
 
   private buildChannel(

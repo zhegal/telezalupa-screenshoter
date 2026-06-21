@@ -221,7 +221,7 @@ limit
 offset
 ```
 
-Relationship endpoints:
+Catalog nested endpoints:
 
 ```txt
 GET    /api/catalog/playlists/:id/channels
@@ -263,18 +263,20 @@ Channel and Playlist editing is split into tabs:
 - Channel: `Основное`, `Потоки`, `Таймзоны`
 - Playlist: `Основное`, `Каналы`, `Таймзоны`
 
-Timezone presets are managed as a standalone dictionary in `/catalog/timezones`. Timezone attachments are managed from Channel or Playlist relation pages, not from the preset list itself.
+Timezone presets are managed as a standalone dictionary in `/catalog/timezones`. Channel timezones are managed from the Channel edit page, and Playlist timezones are managed from the Playlist edit page as fallback timezones.
 
-Relationship management uses full catalog pages instead of small modal controls:
+Playlist and Channel management uses dedicated edit pages:
 
 ```txt
-/catalog/playlists/:id/channels
-/catalog/channels/:id/streams
-/catalog/channels/:id/timezones
-/catalog/playlists/:id/timezones
+/catalog/playlists/:id
+/catalog/channels/:id
 ```
 
-These pages provide search, checkboxes, selected count, attach, detach, and paginated option lists. Catalog rows show quick relation summaries such as stream/channel/timezone counts without opening relation pages.
+Playlist edit includes `Основное`, `Каналы`, and `Таймзоны`. A Playlist owns its Channels, and deleting a Playlist deletes its Channels and Streams.
+
+Channel edit includes `Основное`, `Потоки`, and `Таймзоны`. A Channel owns its Streams, and deleting a Channel deletes its Streams.
+
+Catalog rows show quick summaries such as stream/channel/timezone counts without opening edit pages.
 
 The JSON Import Wizard is linked from the Catalog section so import is treated as part of catalog maintenance.
 
@@ -282,11 +284,14 @@ The JSON Import Wizard is linked from the Catalog section so import is treated a
 
 The `/catalog` UI includes bulk tools for preparing the future database catalog. These tools do not import JSON and do not affect the active worker source. The worker still uses `data/playlists.json`.
 
-Bulk playlist-channel operations:
+Owned playlist-channel operations:
 
 ```txt
-POST /api/catalog/playlists/:id/channels/bulk-attach
-POST /api/catalog/playlists/:id/channels/bulk-detach
+POST   /api/catalog/playlists/:id/channels/owned
+DELETE /api/catalog/playlists/:id/channels/:channelId/owned
+POST   /api/catalog/playlists/:id/channels/bulk-delete-owned
+POST   /api/catalog/playlists/:id/channels/:channelId/copy
+POST   /api/catalog/playlists/:id/channels/:channelId/move
 ```
 
 Payload:
@@ -297,11 +302,11 @@ Payload:
 }
 ```
 
-Bulk channel-stream operations:
+Owned channel-stream operations:
 
 ```txt
-POST /api/catalog/channels/:id/streams/bulk-attach
-POST /api/catalog/channels/:id/streams/bulk-detach
+POST   /api/catalog/channels/:id/streams/owned
+DELETE /api/catalog/channels/:id/streams/:streamId/owned
 ```
 
 Payload:
@@ -401,7 +406,7 @@ Apply creates catalog records only after confirmation:
 - `TimezonePreset`, using upsert by `timezone + label`;
 - `ChannelTimezone`.
 
-Provider suggestions use `Provider.matchPrefix` and `Provider.matchSuffix`. These fields are only import hints. Providers are not guessed globally, not created automatically, and not applied unless the preview selection is confirmed. When a Provider is selected for a row:
+Provider suggestions use `Provider.urlTemplate`: the part before `{streamKey}` is treated as the import prefix, and the part after `{streamKey}` is treated as the import suffix. Providers are not guessed globally, not created automatically, and not applied unless the preview selection is confirmed. When a Provider is selected for a row:
 
 ```txt
 Stream.providerId = selected Provider

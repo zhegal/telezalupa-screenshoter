@@ -6,16 +6,13 @@
           <p class="eyebrow">Database catalog</p>
           <h2>Каталог</h2>
         </div>
-        <span class="pill level-warn">Worker currently uses data/playlists.json</span>
+        <span class="pill" :class="activeSource === 'database' ? 'level-info' : 'level-warn'">
+          Active source: {{ activeSourceLabel }}
+        </span>
       </div>
 
       <p class="catalog-warning">
-        Эти записи сохраняются в PostgreSQL для будущего перехода на database source. Текущий worker
-        не мониторит созданные здесь каналы и продолжает использовать JSON/runtime источник.
-      </p>
-      <p v-if="activeEntity === 'providers'" class="catalog-warning">
-        Match prefix/suffix используются только для import suggestions. Они не применяются
-        автоматически.
+        {{ catalogSourceDescription }}
       </p>
       <div class="catalog-subnav">
         <div class="catalog-subnav-group">
@@ -77,11 +74,11 @@
           <table class="runtime-table">
             <thead>
               <tr>
+                <th v-if="activeEntity === 'streams'" class="select-column">Bulk</th>
                 <th>Title</th>
-                <th v-if="activeEntity === 'streams'">Bulk</th>
                 <th>Enabled</th>
                 <th>Details</th>
-                <th>Relations</th>
+                <th v-if="activeEntity !== 'streams'">Relations</th>
                 <th></th>
               </tr>
             </thead>
@@ -91,11 +88,7 @@
                 :key="item.id"
                 :class="{ selected: selected?.id === item.id }"
               >
-                <td>
-                  <strong>{{ displayTitle(item) }}</strong>
-                  <small>{{ item.id }}</small>
-                </td>
-                <td v-if="activeEntity === 'streams'">
+                <td v-if="activeEntity === 'streams'" class="select-column">
                   <input
                     :checked="selectedStreamIds.has(item.id)"
                     type="checkbox"
@@ -105,12 +98,15 @@
                   />
                 </td>
                 <td>
+                  <strong>{{ displayTitle(item) }}</strong>
+                </td>
+                <td>
                   <span class="pill" :class="item.enabled === false ? 'level-warn' : 'level-info'">
                     {{ item.enabled === false ? 'disabled' : 'enabled' }}
                   </span>
                 </td>
-                <td class="truncate">{{ detailText(item) }}</td>
-                <td>
+                <td class="details-cell">{{ detailText(item) }}</td>
+                <td v-if="activeEntity !== 'streams'">
                   <span class="muted">{{ summaryText(item) }}</span>
                 </td>
                 <td class="row-actions">
@@ -125,7 +121,7 @@
                 </td>
               </tr>
               <tr v-if="items.length === 0">
-                <td :colspan="activeEntity === 'streams' ? 6 : 5" class="empty-cell">
+                <td :colspan="activeEntity === 'streams' ? 5 : 5" class="empty-cell">
                   <div class="empty-state">
                     <span>Нет записей</span>
                     <button class="ghost-button control-button" type="button" @click="startCreate">
@@ -177,6 +173,7 @@
           <div v-if="editorTab === 'basic'" class="editor-tab-panel">
             <section v-for="group in formGroups" :key="group.title" class="form-section">
               <h3>{{ group.title }}</h3>
+              <p v-if="group.description" class="form-section-description">{{ group.description }}</p>
               <div class="form-section-fields">
                 <template v-for="field in group.fields" :key="field.name">
                   <label v-if="field.type !== 'checkbox'">
@@ -225,16 +222,16 @@
             <RouterLink
               v-if="selected && activeEntity === 'channels'"
               class="action-button"
-              :to="`/catalog/channels/${selected.id}/streams`"
+              :to="`/catalog/channels/${selected.id}`"
             >
-              Manage Streams
+              Открыть потоки
             </RouterLink>
             <RouterLink
               v-if="selected && activeEntity === 'playlists'"
               class="action-button"
-              :to="`/catalog/playlists/${selected.id}/channels`"
+              :to="`/catalog/playlists/${selected.id}`"
             >
-              Manage Channels
+              Открыть каналы
             </RouterLink>
           </div>
 
@@ -251,16 +248,16 @@
             <RouterLink
               v-if="selected && activeEntity === 'channels'"
               class="action-button"
-              :to="`/catalog/channels/${selected.id}/timezones`"
+              :to="`/catalog/channels/${selected.id}`"
             >
-              Manage Timezones
+              Открыть таймзоны
             </RouterLink>
             <RouterLink
               v-if="selected && activeEntity === 'playlists'"
               class="action-button"
-              :to="`/catalog/playlists/${selected.id}/timezones`"
+              :to="`/catalog/playlists/${selected.id}`"
             >
-              Manage Timezones
+              Открыть таймзоны
             </RouterLink>
           </div>
 
@@ -287,15 +284,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import AdminLayout from '../../layouts/AdminLayout.vue';
 import PaginationControls from '../../components/PaginationControls.vue';
 import {
   createCatalog,
   deleteCatalog,
+  getSourceSettingsStatus,
   listCatalog,
   updateCatalog,
   type CatalogEntity,
   type CatalogItem,
+  type SourceSettingsStatus,
 } from '../../services/api';
 import StreamBulkTools from './StreamBulkTools.vue';
 
@@ -326,8 +326,6 @@ const entityConfigs: EntityConfig[] = [
         type: 'text',
         placeholder: 'https://host/{streamKey}/playlist.m3u8',
       },
-      { name: 'matchPrefix', label: 'Match prefix', type: 'text' },
-      { name: 'matchSuffix', label: 'Match suffix', type: 'text' },
       { name: 'enabled', label: 'Enabled', type: 'checkbox' },
     ],
   },
@@ -397,6 +395,7 @@ const entityConfigs: EntityConfig[] = [
 ];
 
 const activeEntity = ref<CatalogEntity>('providers');
+const router = useRouter();
 const items = ref<CatalogItem[]>([]);
 const selected = ref<CatalogItem | null>(null);
 const providers = ref<CatalogItem[]>([]);
@@ -412,6 +411,7 @@ const editingId = ref<string | null>(null);
 const formVisible = ref(false);
 const form = reactive<Record<string, string | boolean>>({});
 const selectedStreamIds = reactive(new Set<string>());
+const sourceStatus = ref<SourceSettingsStatus | null>(null);
 const total = ref(0);
 const offset = ref(0);
 const pageSize = ref(Number(localStorage.getItem('catalogPageSize') || 50));
@@ -435,10 +435,21 @@ const editorTabs = computed(() => {
   return ['basic', 'relations', 'timezones'] as const;
 });
 const formGroups = computed(() => groupFields(activeEntity.value, currentConfig.value.fields));
+const activeSource = computed(() => sourceStatus.value?.activeChannelSource || 'json');
+const activeSourceLabel = computed(() => (activeSource.value === 'database' ? 'Database' : 'JSON'));
+const catalogSourceDescription = computed(() =>
+  activeSource.value === 'database'
+    ? 'Worker сейчас использует PostgreSQL catalog как активный источник каналов. Изменения в Providers, Streams, Channels, Playlists и Timezones влияют на database source.'
+    : 'Worker сейчас использует JSON source. PostgreSQL catalog можно редактировать и импортировать заранее; он станет активным после переключения Source Management на Database.',
+);
 
 onMounted(async () => {
-  await Promise.all([loadItems(), loadRelationsAndOptions()]);
+  await Promise.all([loadSourceStatus(), loadItems(), loadRelationsAndOptions()]);
 });
+
+async function loadSourceStatus() {
+  sourceStatus.value = await getSourceSettingsStatus();
+}
 
 async function selectEntity(entity: CatalogEntity) {
   activeEntity.value = entity;
@@ -502,7 +513,17 @@ function startCreate() {
   formVisible.value = true;
 }
 
-function startEdit(item: CatalogItem) {
+async function startEdit(item: CatalogItem) {
+  if (activeEntity.value === 'playlists') {
+    await router.push(`/catalog/playlists/${item.id}`);
+    return;
+  }
+
+  if (activeEntity.value === 'channels') {
+    await router.push(`/catalog/channels/${item.id}`);
+    return;
+  }
+
   selected.value = item;
   editingId.value = item.id;
   editorTab.value = 'basic';
@@ -669,7 +690,7 @@ async function changePageSize(nextPageSize: number) {
 
 function detailText(item: CatalogItem) {
   if ('urlTemplate' in item)
-    return `${item.urlTemplate || ''} ${item.matchPrefix || ''} ${item.matchSuffix || ''}`.trim();
+    return String(item.urlTemplate || '');
   if ('directUrl' in item) return String(item.directUrl || item.streamKey || '');
   if ('description' in item) return String(item.description || '');
   if ('timezone' in item) return `${item.timezone || ''} ${item.label || ''}`;
@@ -739,15 +760,15 @@ function tabLabel(tab: 'basic' | 'relations' | 'timezones') {
 
 function groupFields(entity: CatalogEntity, fields: FieldConfig[]) {
   const byName = new Map(fields.map((field) => [field.name, field]));
-  const createGroup = (title: string, names: string[]) => ({
+  const createGroup = (title: string, names: string[], description = '') => ({
     title,
+    description,
     fields: names.map((name) => byName.get(name)).filter((field): field is FieldConfig => Boolean(field)),
   });
 
   if (entity === 'providers') {
     return [
-      createGroup('Основное', ['title', 'urlTemplate']),
-      createGroup('Сопоставление', ['matchPrefix', 'matchSuffix']),
+      createGroup('Основное', ['title', 'urlTemplate'], 'URL Template используется worker для формирования рабочего URL потока через {streamKey}.'),
       createGroup('Статус', ['enabled']),
     ];
   }

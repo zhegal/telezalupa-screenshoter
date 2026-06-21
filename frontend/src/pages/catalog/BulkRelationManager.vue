@@ -9,23 +9,22 @@
     </div>
 
     <p class="catalog-warning">
-      Массовые операции требуют ручного выбора и подтверждения. JSON Import Wizard пока не реализован,
-      worker всё ещё использует data/playlists.json.
+      Массовые операции требуют ручного выбора и подтверждения. Они изменяют PostgreSQL catalog; активный источник worker управляется в Settings -> Sources.
     </p>
 
     <div class="filter-row">
       <input v-model="search" class="filter-input" type="search" placeholder="Поиск" />
       <button class="ghost-button control-button" type="button" @click="selectVisible">
-        Select all visible
+        Выбрать видимые
       </button>
       <button class="ghost-button control-button" type="button" @click="selectedIds.clear()">
-        Clear selection
+        Очистить выбор
       </button>
       <button class="action-button" type="button" :disabled="selectedIds.size === 0 || loading" @click="attach">
-        Bulk attach
+        {{ addLabel }}
       </button>
       <button class="ghost-button control-button danger" type="button" :disabled="selectedIds.size === 0 || loading" @click="detach">
-        Bulk detach
+        {{ deleteLabel }}
       </button>
     </div>
 
@@ -77,9 +76,11 @@ const stats = ref<BulkOperationStats | null>(null);
 
 const title = computed(() =>
   props.ownerType === 'playlist'
-    ? `Manage Channels: ${displayTitle(props.owner)}`
-    : `Manage Streams: ${displayTitle(props.owner)}`,
+    ? `Каналы: ${displayTitle(props.owner)}`
+    : `Потоки: ${displayTitle(props.owner)}`,
 );
+const addLabel = computed(() => (props.ownerType === 'playlist' ? 'Добавить каналы' : 'Добавить потоки'));
+const deleteLabel = computed(() => (props.ownerType === 'playlist' ? 'Удалить каналы' : 'Удалить потоки'));
 
 const visibleOptions = computed(() => {
   const query = search.value.trim().toLowerCase();
@@ -102,7 +103,7 @@ function selectVisible() {
 }
 
 async function attach() {
-  if (!window.confirm(`Привязать ${selectedIds.size} записей?`)) {
+  if (!window.confirm(`Добавить ${selectedIds.size} записей?`)) {
     return;
   }
 
@@ -110,7 +111,7 @@ async function attach() {
 }
 
 async function detach() {
-  if (!window.confirm(`Отвязать ${selectedIds.size} записей?`)) {
+  if (!window.confirm(`Удалить ${selectedIds.size} записей?`)) {
     return;
   }
 

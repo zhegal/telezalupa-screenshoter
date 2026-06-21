@@ -15,7 +15,7 @@
         <table class="runtime-table">
           <thead>
             <tr>
-              <th>URL</th>
+              <th>{{ sourceLabel === 'Database' ? 'Playlist' : 'URL' }}</th>
               <th>Loaded</th>
               <th>Channels</th>
               <th>Available</th>
@@ -26,7 +26,12 @@
           </thead>
           <tbody>
             <tr v-for="playlist in playlists" :key="playlist.url">
-              <td class="truncate">{{ playlist.url }}</td>
+              <td>
+                <RouterLink v-if="sourceLabel === 'Database' && playlist.id" class="table-link" :to="`/catalog/playlists/${playlist.id}`">
+                  {{ playlist.title || playlist.url }}
+                </RouterLink>
+                <span v-else class="details-cell">{{ playlist.url }}</span>
+              </td>
               <td>
                 <span class="pill" :class="playlist.loaded ? 'level-info' : 'level-warn'">
                   {{ playlist.loading ? 'loading' : playlist.loaded ? 'yes' : 'no' }}

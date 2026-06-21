@@ -107,6 +107,32 @@ export class CatalogPlaylistChannelsController {
     return this.catalog.bulkDetachPlaylistChannels(playlistId, body);
   }
 
+  @Post('owned')
+  createOwned(@Param('playlistId') playlistId: string, @Body() body: Record<string, unknown>) {
+    return this.catalog.createPlaylistOwnedChannel(playlistId, body);
+  }
+
+  @Post('bulk-delete-owned')
+  bulkDeleteOwned(@Param('playlistId') playlistId: string, @Body() body: BulkRelationBody) {
+    return this.catalog.bulkDeletePlaylistOwnedChannels(playlistId, body);
+  }
+
+  @Post(':channelId/copy')
+  copy(@Param('playlistId') playlistId: string, @Param('channelId') channelId: string, @Body() body: Record<string, unknown>) {
+    return this.catalog.copyPlaylistOwnedChannel(playlistId, channelId, body);
+  }
+
+  @Post(':channelId/move')
+  move(@Param('playlistId') playlistId: string, @Param('channelId') channelId: string, @Body() body: Record<string, unknown>) {
+    return this.catalog.movePlaylistOwnedChannel(playlistId, channelId, body);
+  }
+
+  @Delete(':channelId/owned')
+  @HttpCode(200)
+  deleteOwned(@Param('playlistId') playlistId: string, @Param('channelId') channelId: string) {
+    return this.catalog.deletePlaylistOwnedChannel(playlistId, channelId);
+  }
+
   @Patch(':relationId')
   update(
     @Param('playlistId') playlistId: string,
@@ -146,6 +172,17 @@ export class CatalogChannelStreamsController {
   @Post('bulk-detach')
   bulkDetach(@Param('channelId') channelId: string, @Body() body: BulkRelationBody) {
     return this.catalog.bulkDetachChannelStreams(channelId, body);
+  }
+
+  @Post('owned')
+  createOwned(@Param('channelId') channelId: string, @Body() body: Record<string, unknown>) {
+    return this.catalog.createChannelOwnedStream(channelId, body);
+  }
+
+  @Delete(':streamId/owned')
+  @HttpCode(200)
+  deleteOwned(@Param('channelId') channelId: string, @Param('streamId') streamId: string) {
+    return this.catalog.deleteChannelOwnedStream(channelId, streamId);
   }
 
   @Patch(':relationId')

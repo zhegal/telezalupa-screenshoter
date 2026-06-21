@@ -40,7 +40,10 @@
           <tbody>
             <tr v-for="channel in channels" :key="`${channel.playlistUrl}:${channel.title}:${channel.url}`">
               <td>
-                <strong>{{ channel.title }}</strong>
+                <RouterLink v-if="sourceLabel === 'Database' && channel.channelId" class="table-link" :to="`/catalog/channels/${channel.channelId}`">
+                  {{ channel.title }}
+                </RouterLink>
+                <strong v-else>{{ channel.title }}</strong>
                 <small>{{ channel.description }}</small>
               </td>
               <td>
@@ -57,7 +60,16 @@
                   {{ channel.consecutiveFailures }}
                 </span>
               </td>
-              <td class="truncate">{{ channel.playlistUrl }}</td>
+              <td>
+                <RouterLink
+                  v-if="sourceLabel === 'Database' && channel.playlistId"
+                  class="table-link"
+                  :to="`/catalog/playlists/${channel.playlistId}`"
+                >
+                  {{ channel.playlistTitle || channel.playlistUrl }}
+                </RouterLink>
+                <span v-else class="details-cell">{{ channel.playlistUrl }}</span>
+              </td>
             </tr>
             <tr v-if="channels.length === 0">
               <td colspan="8" class="empty-cell">No channels match filters</td>

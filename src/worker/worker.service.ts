@@ -159,8 +159,9 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       const selected = await this.databasePlaylistSelector.selectChannel();
 
       if (!selected) {
-        this.logger.warn('No available database channels now');
-        this.logs.add('warn', 'worker', 'No available database channels now');
+        const diagnostics = await this.databasePlaylistSelector.getDiagnostics();
+        this.logger.warn(`No available database channels now: ${JSON.stringify(diagnostics)}`);
+        this.logs.add('warn', 'worker', 'No available database channels now', diagnostics);
         this.scheduleNext(this.workerConfig.retryIntervalMs);
         return;
       }

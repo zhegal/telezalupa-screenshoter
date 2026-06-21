@@ -2,12 +2,14 @@ import { createRouter, createWebHistory } from 'vue-router';
 import CatalogPage from '../pages/catalog/CatalogPage.vue';
 import CatalogImportPage from '../pages/catalog/CatalogImportPage.vue';
 import CatalogRelationManagePage from '../pages/catalog/CatalogRelationManagePage.vue';
+import ChannelEditPage from '../pages/catalog/ChannelEditPage.vue';
 import ChannelsPage from '../pages/ChannelsPage.vue';
 import DashboardPage from '../pages/DashboardPage.vue';
 import LoginPage from '../pages/LoginPage.vue';
 import LogsPage from '../pages/LogsPage.vue';
 import NotFoundPage from '../pages/NotFoundPage.vue';
 import PlaylistsPage from '../pages/PlaylistsPage.vue';
+import PlaylistEditPage from '../pages/catalog/PlaylistEditPage.vue';
 import ProfileSettingsPage from '../pages/ProfileSettingsPage.vue';
 import SetupPage from '../pages/SetupPage.vue';
 import SettingsSourcesPage from '../pages/SettingsSourcesPage.vue';
@@ -93,6 +95,22 @@ export const router = createRouter({
       path: '/catalog/import',
       name: 'catalog-import',
       component: CatalogImportPage,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/catalog/playlists/:id',
+      name: 'catalog-playlist-edit',
+      component: PlaylistEditPage,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/catalog/channels/:id',
+      name: 'catalog-channel-edit',
+      component: ChannelEditPage,
       meta: {
         requiresAuth: true,
       },

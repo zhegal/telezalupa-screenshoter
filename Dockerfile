@@ -24,5 +24,6 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/prisma ./prisma
 COPY data ./data
+COPY data ./default-data
 EXPOSE 3000
-CMD ["npm", "run", "start:prod"]
+CMD ["sh", "-c", "if [ ! -e data/playlists.json ] && [ -z \"$(ls -A data 2>/dev/null)\" ] && [ -f default-data/playlists.json ]; then cp default-data/playlists.json data/playlists.json; fi; npm run start:prod"]
