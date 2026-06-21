@@ -72,7 +72,7 @@
 
       <p v-if="error" class="form-error">{{ error }}</p>
 
-      <div class="catalog-layout" :class="{ 'form-open': formVisible }">
+      <div class="catalog-layout">
         <div class="table-wrap catalog-list">
           <table class="runtime-table">
             <thead>
@@ -146,14 +146,18 @@
           @change-page-size="changePageSize"
         />
 
-        <form v-if="formVisible" class="catalog-form" @submit.prevent="saveForm">
+      </div>
+    </section>
+
+    <div v-if="formVisible" class="modal-backdrop" role="presentation" @click.self="hideForm">
+      <form class="catalog-form catalog-modal" role="dialog" aria-modal="true" @submit.prevent="saveForm">
           <div class="panel-header">
             <div>
               <p class="eyebrow">{{ editingId ? 'Edit' : 'Create' }}</p>
               <h2>{{ currentConfig.label }}</h2>
             </div>
             <button class="ghost-button control-button" type="button" @click="hideForm">
-              Закрыть
+              Cancel
             </button>
           </div>
 
@@ -256,9 +260,8 @@
           <button v-if="editorTab === 'basic'" class="action-button" type="submit" :disabled="saving">
             {{ saving ? 'Сохранение...' : 'Сохранить' }}
           </button>
-        </form>
-      </div>
-    </section>
+      </form>
+    </div>
 
     <StreamBulkTools
       v-if="activeEntity === 'streams'"

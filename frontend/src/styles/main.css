@@ -154,7 +154,13 @@ button {
   line-height: 1.1;
 }
 
-.topbar-status {
+.topbar-user-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-profile {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -165,6 +171,12 @@ button {
   color: #c7f8e5;
   background: rgba(75, 215, 167, 0.08);
   font-size: 13px;
+}
+
+.topbar-profile:hover,
+.topbar-profile.router-link-active {
+  border-color: rgba(75, 215, 167, 0.46);
+  background: rgba(75, 215, 167, 0.13);
 }
 
 .status-dot {
@@ -200,6 +212,7 @@ button {
 
 .panel-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
@@ -571,10 +584,6 @@ button {
   align-items: start;
 }
 
-.catalog-layout.form-open {
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.7fr);
-}
-
 .catalog-list {
   min-width: 0;
 }
@@ -586,6 +595,26 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.035);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 8, 10, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.catalog-modal {
+  width: min(720px, 100%);
+  max-height: min(820px, calc(100vh - 48px));
+  overflow-y: auto;
+  border-color: rgba(75, 215, 167, 0.22);
+  background: rgba(15, 25, 31, 0.98);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.44);
 }
 
 .catalog-form label,
@@ -838,14 +867,15 @@ button {
 
 .pill {
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
   justify-content: center;
-  min-height: 18px;
-  padding: 1px 6px;
+  min-height: 0;
+  padding: 2px 7px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.15;
   vertical-align: middle;
 }
 
@@ -942,6 +972,11 @@ button {
     font-size: 24px;
   }
 
+  .topbar-user-controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .panel-header,
   .health-status {
     align-items: flex-start;
@@ -979,5 +1014,15 @@ button {
   .settings-source-grid,
   .relation-form {
     grid-template-columns: 1fr;
+  }
+
+  .modal-backdrop {
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  .catalog-modal {
+    width: 100%;
+    max-height: calc(100vh - 20px);
   }
 }

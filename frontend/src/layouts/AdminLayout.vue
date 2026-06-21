@@ -25,9 +25,11 @@
           <p>{{ t.appSubtitle }}</p>
           <h1>{{ t.dashboard }}</h1>
         </div>
-        <div class="topbar-status">
-          <span class="status-dot" />
-          <span>{{ auth.user?.displayName || auth.user?.username || t.backend }}</span>
+        <div class="topbar-user-controls">
+          <RouterLink class="topbar-profile" to="/settings/profile">
+            <span class="status-dot" />
+            <span>{{ auth.user?.displayName || auth.user?.username || t.backend }}</span>
+          </RouterLink>
           <button class="ghost-button" type="button" @click="handleLogout">{{ t.logout }}</button>
         </div>
       </header>

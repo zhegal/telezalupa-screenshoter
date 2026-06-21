@@ -8,6 +8,7 @@ import LoginPage from '../pages/LoginPage.vue';
 import LogsPage from '../pages/LogsPage.vue';
 import NotFoundPage from '../pages/NotFoundPage.vue';
 import PlaylistsPage from '../pages/PlaylistsPage.vue';
+import ProfileSettingsPage from '../pages/ProfileSettingsPage.vue';
 import SetupPage from '../pages/SetupPage.vue';
 import SettingsSourcesPage from '../pages/SettingsSourcesPage.vue';
 import WorkerPage from '../pages/WorkerPage.vue';
@@ -108,6 +109,14 @@ export const router = createRouter({
       path: '/settings',
       name: 'settings',
       component: SettingsSourcesPage,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/settings/profile',
+      name: 'settings-profile',
+      component: ProfileSettingsPage,
       meta: {
         requiresAuth: true,
       },
