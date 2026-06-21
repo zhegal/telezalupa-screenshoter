@@ -3,7 +3,7 @@
     <section class="panel wide-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Read-only runtime channels из JSON/cache</p>
+          <p class="eyebrow">Source: {{ sourceLabel }}</p>
           <h2>Channels</h2>
         </div>
         <button class="ghost-button control-button" type="button" :disabled="loading" @click="refresh">
@@ -38,7 +38,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="channel in channels" :key="`${channel.playlistUrl}:${channel.url}`">
+            <tr v-for="channel in channels" :key="`${channel.playlistUrl}:${channel.title}:${channel.url}`">
               <td>
                 <strong>{{ channel.title }}</strong>
                 <small>{{ channel.description }}</small>
@@ -89,6 +89,7 @@ const filter = ref<'all' | 'available' | 'errors'>('all');
 const total = ref(0);
 const offset = ref(0);
 const pageSize = ref(Number(localStorage.getItem('runtimeChannelsPageSize') || 50));
+const sourceLabel = ref('JSON');
 
 onMounted(() => {
   void refresh();
@@ -106,6 +107,7 @@ async function refresh() {
     });
     channels.value = response.items;
     total.value = response.total || response.items.length;
+    sourceLabel.value = response.source === 'database' ? 'Database' : 'JSON';
   } finally {
     loading.value = false;
   }

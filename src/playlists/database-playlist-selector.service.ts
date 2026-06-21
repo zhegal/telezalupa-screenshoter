@@ -77,20 +77,51 @@ export class DatabasePlaylistSelectorService {
   }
 
   async listRuntimePlaylists() {
-    await this.reloadSnapshots();
+    const playlists = await this.prisma.playlist.findMany({
+      where: { enabled: true },
+      include: {
+        playlistChannels: {
+          where: {
+            enabled: true,
+            channel: { enabled: true },
+          },
+          include: {
+            channel: {
+              include: {
+                channelTimezones: {
+                  include: { timezonePreset: true },
+                  orderBy: { priority: 'asc' },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+    });
 
-    return Array.from(this.snapshots.values()).map((snapshot) => {
-      const availableChannelsCount = snapshot.channels.filter((channel) =>
-        this.channelAvailability.isAvailableNow(channel),
+    return playlists.map((playlist) => {
+      const snapshot = this.snapshots.get(playlist.id);
+      const channels = playlist.playlistChannels.map((relation) =>
+        this.buildRuntimeChannel(
+          relation.channel,
+          this.playlistConfig.defaultTimezones,
+          [],
+        ),
+      ).length;
+      const availableChannelsCount = playlist.playlistChannels.filter((relation) =>
+        this.channelAvailability.isAvailableNow(
+          this.buildRuntimeChannel(relation.channel, this.playlistConfig.defaultTimezones, []),
+        ),
       ).length;
 
       return {
-        url: `database:${snapshot.id}:${snapshot.title}`,
+        url: `database:${playlist.id}:${playlist.title}`,
         loaded: true,
         loading: false,
-        channelsCount: snapshot.channels.length,
+        channelsCount: channels,
         availableChannelsCount,
-        queueLeft: snapshot.channelQueue.length,
+        queueLeft: snapshot?.channelQueue.length ?? 0,
         lastLoadedAt: null,
         lastLoadError: null,
       };
@@ -98,24 +129,75 @@ export class DatabasePlaylistSelectorService {
   }
 
   async listRuntimeChannels() {
-    await this.reloadSnapshots();
+    const playlists = await this.prisma.playlist.findMany({
+      where: { enabled: true },
+      include: {
+        playlistTimezones: {
+          include: { timezonePreset: true },
+          orderBy: { priority: 'asc' },
+        },
+        playlistChannels: {
+          where: {
+            enabled: true,
+            channel: { enabled: true },
+          },
+          include: {
+            channel: {
+              include: {
+                channelTimezones: {
+                  include: { timezonePreset: true },
+                  orderBy: { priority: 'asc' },
+                },
+                channelStreams: {
+                  where: {
+                    enabled: true,
+                    stream: {
+                      enabled: true,
+                      OR: [{ providerId: null }, { provider: { enabled: true } }],
+                    },
+                  },
+                  include: {
+                    stream: {
+                      include: { provider: true },
+                    },
+                  },
+                  orderBy: [{ priority: 'desc' }, { stream: { priority: 'desc' } }],
+                },
+              },
+            },
+          },
+          orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+        },
+      },
+      orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+    });
 
-    return Array.from(this.snapshots.values()).flatMap((snapshot) =>
-      snapshot.channels.map((channel) => ({
-        playlistUrl: `database:${snapshot.id}:${snapshot.title}`,
-        title: channel.title,
-        description: channel.description,
-        url: channel.url,
-        availableNow: this.channelAvailability.isAvailableNow(channel),
-        scale: channel.scale,
-        delay: channel.delay,
-        userAgent: channel['user-agent'],
-        timezones: channel.timezones,
-        available: channel.available,
-        streamCandidates: channel.streamCandidates?.length ?? 0,
-        streamCandidateUrls: channel.streamCandidates?.map((stream) => stream.url) ?? [channel.url],
-      })),
-    );
+    return playlists.flatMap((playlist) => {
+      const playlistTimezones = this.normalizeTimezoneRelations(playlist.playlistTimezones);
+
+      return playlist.playlistChannels.map((relation) => {
+        const channel = this.buildRuntimeChannel(
+          relation.channel,
+          playlistTimezones,
+          relation.channel.channelStreams.map((item) => item.stream),
+        );
+
+        return {
+          playlistUrl: `database:${playlist.id}:${playlist.title}`,
+          title: channel.title,
+          description: channel.description,
+          url: channel.url,
+          availableNow: this.channelAvailability.isAvailableNow(channel),
+          scale: channel.scale,
+          delay: channel.delay,
+          userAgent: channel['user-agent'],
+          timezones: channel.timezones,
+          available: channel.available,
+          streamCandidates: channel.streamCandidates?.length ?? 0,
+          streamCandidateUrls: channel.streamCandidates?.map((stream) => stream.url) ?? [channel.url],
+        };
+      });
+    });
   }
 
   private async reloadSnapshots(): Promise<void> {
@@ -252,6 +334,49 @@ export class DatabasePlaylistSelectorService {
       timezones,
       available: null,
       'user-agent': firstStream.userAgent,
+      streamCandidates,
+    };
+  }
+
+  private buildRuntimeChannel(
+    channel: {
+      title: string;
+      description: string | null;
+      defaultDelaySeconds: number | null;
+      defaultScale: string | null;
+      channelTimezones: Array<{ timezonePreset: { enabled: boolean; timezone: string; label: string }; priority: number }>;
+    },
+    playlistTimezones: ChannelTimezone[],
+    streams: Array<{
+      id: string;
+      title: string;
+      streamKey: string | null;
+      directUrl: string | null;
+      userAgent: string | null;
+      provider: { enabled: boolean; urlTemplate: string } | null;
+    }>,
+  ): Channel {
+    const streamCandidates = streams
+      .map((stream) => this.buildStreamCandidate(stream))
+      .filter((stream): stream is ChannelStreamCandidate => Boolean(stream));
+    const channelTimezones = this.normalizeTimezoneRelations(channel.channelTimezones);
+    const timezones =
+      channelTimezones.length > 0
+        ? channelTimezones
+        : playlistTimezones.length > 0
+          ? playlistTimezones
+          : this.playlistConfig.defaultTimezones;
+    const firstStream = streamCandidates[0];
+
+    return {
+      title: channel.title,
+      description: channel.description || '',
+      url: firstStream?.url || '',
+      scale: channel.defaultScale || this.playlistConfig.defaultScale,
+      delay: channel.defaultDelaySeconds,
+      timezones,
+      available: null,
+      'user-agent': firstStream?.userAgent || '',
       streamCandidates,
     };
   }

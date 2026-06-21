@@ -3,7 +3,7 @@
     <section class="panel wide-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Источник: data/playlists.json</p>
+          <p class="eyebrow">Source: {{ sourceLabel }}</p>
           <h2>Runtime playlists</h2>
         </div>
         <button class="ghost-button control-button" type="button" :disabled="loading" @click="refresh">
@@ -55,6 +55,7 @@ import { getRuntimePlaylists, type RuntimePlaylist } from '../services/api';
 
 const playlists = ref<RuntimePlaylist[]>([]);
 const loading = ref(false);
+const sourceLabel = ref('JSON');
 
 onMounted(() => {
   void refresh();
@@ -66,6 +67,7 @@ async function refresh() {
   try {
     const response = await getRuntimePlaylists();
     playlists.value = response.items;
+    sourceLabel.value = response.source === 'database' ? 'Database' : 'JSON';
   } finally {
     loading.value = false;
   }
