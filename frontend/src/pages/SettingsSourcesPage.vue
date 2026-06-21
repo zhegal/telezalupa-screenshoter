@@ -71,8 +71,8 @@
             <h2>JSON file</h2>
           </div>
           <div class="control-row">
-            <button class="ghost-button control-button" type="button" :disabled="loading" @click="loadJsonFile">
-              View/Edit
+            <button class="ghost-button control-button" type="button" :disabled="loading" @click="openJsonEditor">
+              {{ jsonStatus.exists ? 'View/Edit' : 'Create/Edit' }}
             </button>
             <button class="ghost-button control-button danger" type="button" :disabled="actionLoading" @click="removeJsonFile">
               Delete
@@ -99,14 +99,23 @@
           </div>
         </dl>
 
-        <form class="catalog-form source-json-form" @submit.prevent="saveJsonFile">
+        <p v-if="!jsonStatus.exists && !jsonEditMode" class="catalog-warning">
+          JSON file is missing. Use Create/Edit to create or upload playlist URLs.
+        </p>
+
+        <form v-if="jsonEditMode" class="catalog-form source-json-form" @submit.prevent="saveJsonFile">
           <label>
             Content
             <textarea v-model="jsonContent" class="large-textarea" spellcheck="false" />
           </label>
-          <button class="action-button" type="submit" :disabled="actionLoading">
-            Save JSON file
-          </button>
+          <div class="modal-actions">
+            <button class="ghost-button control-button" type="button" :disabled="actionLoading" @click="cancelJsonEdit">
+              Cancel
+            </button>
+            <button class="action-button" type="submit" :disabled="actionLoading">
+              Save JSON file
+            </button>
+          </div>
         </form>
       </section>
 
@@ -147,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import AdminLayout from '../layouts/AdminLayout.vue';
 import {
   deleteJsonSourceFile,
@@ -163,10 +172,21 @@ import {
 const status = ref<SourceSettingsStatus | null>(null);
 const jsonFile = ref<JsonFileResponse | null>(null);
 const jsonContent = ref('[\n]\n');
+const savedJsonContent = ref('[\n]\n');
+const jsonEditMode = ref(false);
 const loading = ref(false);
 const actionLoading = ref(false);
 const message = ref('');
 const error = ref('');
+
+const jsonStatus = computed(() => jsonFile.value?.status || status.value?.json || {
+  exists: false,
+  valid: false,
+  sourceAvailable: false,
+  sourceCount: 0,
+  path: 'data/playlists.json',
+  error: null,
+});
 
 onMounted(() => {
   void refresh();
@@ -185,7 +205,7 @@ async function refresh() {
   }
 }
 
-async function loadJsonFile() {
+async function openJsonEditor() {
   loading.value = true;
   error.value = '';
   message.value = '';
@@ -193,6 +213,8 @@ async function loadJsonFile() {
   try {
     jsonFile.value = await getJsonSourceFile();
     jsonContent.value = jsonFile.value.content || '[\n]\n';
+    savedJsonContent.value = jsonContent.value;
+    jsonEditMode.value = true;
     if (status.value) {
       status.value = {
         ...status.value,
@@ -206,6 +228,12 @@ async function loadJsonFile() {
   } finally {
     loading.value = false;
   }
+}
+
+function cancelJsonEdit() {
+  jsonContent.value = savedJsonContent.value;
+  jsonEditMode.value = false;
+  error.value = '';
 }
 
 async function switchSource(source: ChannelSource) {
@@ -232,7 +260,11 @@ async function saveJsonFile() {
   try {
     const response = await saveJsonSourceFile(jsonContent.value);
     jsonFile.value = { status: response.status, content: null };
-    await loadJsonFile();
+    const latest = await getJsonSourceFile();
+    jsonFile.value = latest;
+    jsonContent.value = latest.content || '[\n]\n';
+    savedJsonContent.value = jsonContent.value;
+    jsonEditMode.value = false;
     await refresh();
     message.value = response.backupPath
       ? `JSON file saved. Backup created: ${response.backupPath}`
@@ -257,6 +289,8 @@ async function removeJsonFile() {
     const response = await deleteJsonSourceFile();
     jsonFile.value = { status: response.status, content: null };
     jsonContent.value = '[\n]\n';
+    savedJsonContent.value = '[\n]\n';
+    jsonEditMode.value = false;
     await refresh();
     message.value = response.backupPath
       ? `JSON file deleted. Backup created: ${response.backupPath}`

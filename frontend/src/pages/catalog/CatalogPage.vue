@@ -153,8 +153,8 @@
       <form class="catalog-form catalog-modal" role="dialog" aria-modal="true" @submit.prevent="saveForm">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">{{ editingId ? 'Edit' : 'Create' }}</p>
-              <h2>{{ currentConfig.label }}</h2>
+              <p class="eyebrow">{{ currentConfig.label }}</p>
+              <h2>{{ modalTitle }}</h2>
             </div>
             <button class="ghost-button control-button" type="button" @click="hideForm">
               Cancel
@@ -175,40 +175,47 @@
           </div>
 
           <div v-if="editorTab === 'basic'" class="editor-tab-panel">
-            <label v-for="field in currentConfig.fields" :key="field.name">
-              <span>{{ field.label }}</span>
-              <input
-                v-if="field.type === 'text' || field.type === 'number'"
-                :value="stringFormValue(field.name)"
-                :type="field.type"
-                :placeholder="field.placeholder || ''"
-                @input="setStringFormValue(field.name, ($event.target as HTMLInputElement).value)"
-              />
-              <textarea
-                v-else-if="field.type === 'textarea'"
-                :value="stringFormValue(field.name)"
-                :placeholder="field.placeholder || ''"
-                @input="setStringFormValue(field.name, ($event.target as HTMLTextAreaElement).value)"
-              />
-              <select
-                v-else-if="field.type === 'provider'"
-                :value="stringFormValue(field.name)"
-                @change="setStringFormValue(field.name, ($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">Без Provider</option>
-                <option v-for="provider in providers" :key="provider.id" :value="provider.id">
-                  {{ displayTitle(provider) }}
-                </option>
-              </select>
-              <label v-else class="toggle-line">
-                <input
-                  :checked="Boolean(form[field.name])"
-                  type="checkbox"
-                  @change="form[field.name] = ($event.target as HTMLInputElement).checked"
-                />
-                <span>{{ form[field.name] ? 'Enabled' : 'Disabled' }}</span>
-              </label>
-            </label>
+            <section v-for="group in formGroups" :key="group.title" class="form-section">
+              <h3>{{ group.title }}</h3>
+              <div class="form-section-fields">
+                <template v-for="field in group.fields" :key="field.name">
+                  <label v-if="field.type !== 'checkbox'">
+                    <span>{{ field.label }}</span>
+                    <input
+                      v-if="field.type === 'text' || field.type === 'number'"
+                      :value="stringFormValue(field.name)"
+                      :type="field.type"
+                      :placeholder="field.placeholder || ''"
+                      @input="setStringFormValue(field.name, ($event.target as HTMLInputElement).value)"
+                    />
+                    <textarea
+                      v-else-if="field.type === 'textarea'"
+                      :value="stringFormValue(field.name)"
+                      :placeholder="field.placeholder || ''"
+                      @input="setStringFormValue(field.name, ($event.target as HTMLTextAreaElement).value)"
+                    />
+                    <select
+                      v-else-if="field.type === 'provider'"
+                      :value="stringFormValue(field.name)"
+                      @change="setStringFormValue(field.name, ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">Без Provider</option>
+                      <option v-for="provider in providers" :key="provider.id" :value="provider.id">
+                        {{ displayTitle(provider) }}
+                      </option>
+                    </select>
+                  </label>
+                  <label v-else class="toggle-line status-toggle">
+                    <input
+                      :checked="Boolean(form[field.name])"
+                      type="checkbox"
+                      @change="form[field.name] = ($event.target as HTMLInputElement).checked"
+                    />
+                    <span>{{ checkboxLabel(field.name) }}</span>
+                  </label>
+                </template>
+              </div>
+            </section>
           </div>
 
           <div v-else-if="editorTab === 'relations'" class="editor-tab-panel">
@@ -257,9 +264,12 @@
             </RouterLink>
           </div>
 
-          <button v-if="editorTab === 'basic'" class="action-button" type="submit" :disabled="saving">
-            {{ saving ? 'Сохранение...' : 'Сохранить' }}
-          </button>
+          <div v-if="editorTab === 'basic'" class="modal-actions">
+            <button class="ghost-button control-button" type="button" @click="hideForm">Отмена</button>
+            <button class="action-button" type="submit" :disabled="saving">
+              {{ saving ? 'Сохранение...' : 'Сохранить' }}
+            </button>
+          </div>
       </form>
     </div>
 
@@ -410,6 +420,10 @@ const editorTab = ref<'basic' | 'relations' | 'timezones'>('basic');
 const currentConfig = computed(
   () => entityConfigs.find((item) => item.entity === activeEntity.value) || entityConfigs[0],
 );
+const entitySingularLabel = computed(() => currentConfig.value.label.replace(/s$/, ''));
+const modalTitle = computed(() =>
+  editingId.value ? `Редактирование ${entitySingularLabel.value}` : `Новый ${entitySingularLabel.value}`,
+);
 const isTabbedEditor = computed(
   () => Boolean(editingId.value) && (activeEntity.value === 'channels' || activeEntity.value === 'playlists'),
 );
@@ -420,6 +434,7 @@ const editorTabs = computed(() => {
 
   return ['basic', 'relations', 'timezones'] as const;
 });
+const formGroups = computed(() => groupFields(activeEntity.value, currentConfig.value.fields));
 
 onMounted(async () => {
   await Promise.all([loadItems(), loadRelationsAndOptions()]);
@@ -720,5 +735,59 @@ function tabLabel(tab: 'basic' | 'relations' | 'timezones') {
   if (activeEntity.value === 'channels' && tab === 'relations') return 'Потоки';
   if (activeEntity.value === 'playlists' && tab === 'relations') return 'Каналы';
   return 'Таймзоны';
+}
+
+function groupFields(entity: CatalogEntity, fields: FieldConfig[]) {
+  const byName = new Map(fields.map((field) => [field.name, field]));
+  const createGroup = (title: string, names: string[]) => ({
+    title,
+    fields: names.map((name) => byName.get(name)).filter((field): field is FieldConfig => Boolean(field)),
+  });
+
+  if (entity === 'providers') {
+    return [
+      createGroup('Основное', ['title', 'urlTemplate']),
+      createGroup('Сопоставление', ['matchPrefix', 'matchSuffix']),
+      createGroup('Статус', ['enabled']),
+    ];
+  }
+
+  if (entity === 'streams') {
+    return [
+      createGroup('Основное', ['title', 'providerId']),
+      createGroup('Источник', ['streamKey', 'directUrl', 'userAgent']),
+      createGroup('Порядок и статус', ['priority', 'enabled']),
+    ];
+  }
+
+  if (entity === 'channels') {
+    return [
+      createGroup('Основное', ['title', 'description']),
+      createGroup('Параметры захвата', ['defaultDelaySeconds', 'defaultScale']),
+      createGroup('Статус', ['enabled']),
+    ];
+  }
+
+  if (entity === 'playlists') {
+    return [createGroup('Основное', ['title', 'priority']), createGroup('Статус', ['enabled'])];
+  }
+
+  if (entity === 'timezones') {
+    return [createGroup('Основное', ['timezone', 'label', 'priority']), createGroup('Статус', ['enabled'])];
+  }
+
+  if (entity === 'telegram-chats') {
+    return [createGroup('Основное', ['title', 'chatId']), createGroup('Статус', ['isDefault', 'enabled'])];
+  }
+
+  return [createGroup('Основное', ['title', 'template']), createGroup('Статус', ['isDefault', 'enabled'])];
+}
+
+function checkboxLabel(name: string) {
+  if (name === 'isDefault') {
+    return 'По умолчанию';
+  }
+
+  return 'Активен';
 }
 </script>

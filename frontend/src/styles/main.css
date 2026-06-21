@@ -363,6 +363,15 @@ button {
   white-space: nowrap;
 }
 
+.url-cell {
+  min-width: 260px;
+  max-width: 560px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
 .sections-block {
   margin-top: 28px;
 }
@@ -590,7 +599,7 @@ button {
 
 .catalog-form {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
@@ -617,12 +626,40 @@ button {
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.44);
 }
 
+.catalog-modal .panel-header {
+  padding-bottom: 4px;
+}
+
 .catalog-form label,
 .relation-form {
   display: grid;
   gap: 8px;
   color: #9ab1aa;
   font-size: 13px;
+}
+
+.form-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.form-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.form-section h3 {
+  margin: 0;
+  color: #d6e7e2;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.form-section-fields {
+  display: grid;
+  gap: 12px;
 }
 
 .catalog-form input,
@@ -650,6 +687,12 @@ button {
   grid-auto-flow: column;
   grid-template-columns: auto 1fr;
   align-items: center;
+}
+
+.status-toggle {
+  display: inline-flex !important;
+  width: fit-content;
+  color: #dcebe7 !important;
 }
 
 .toggle-line input {
@@ -710,6 +753,17 @@ button {
 .editor-tab-panel {
   display: grid;
   gap: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.modal-actions .action-button {
+  width: auto;
 }
 
 .relation-summary {
@@ -870,12 +924,13 @@ button {
   align-self: flex-start;
   align-items: center;
   justify-content: center;
-  min-height: 0;
-  padding: 2px 7px;
+  width: fit-content;
+  min-height: auto;
+  padding: 0.5rem 0.75rem;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1;
   vertical-align: middle;
 }
 

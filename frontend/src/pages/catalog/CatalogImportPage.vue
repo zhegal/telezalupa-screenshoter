@@ -142,7 +142,7 @@
                 <strong>{{ row.title }}</strong>
                 <small>{{ row.description || '—' }}</small>
               </td>
-              <td class="truncate">{{ row.originalUrl }}</td>
+              <td class="url-cell">{{ row.originalUrl }}</td>
               <td>{{ row.importMode }}</td>
               <td>
                 <select
