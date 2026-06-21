@@ -96,7 +96,7 @@ export interface JsonSourceStatus {
 }
 
 export interface DatabaseSourceStatus {
-  implemented: false;
+  implemented: boolean;
   sourceAvailable: true;
   playlistCount: number;
   channelCount: number;
@@ -108,7 +108,7 @@ export interface SourceSettingsStatus {
   activeChannelSource: ChannelSource;
   json: JsonSourceStatus;
   database: DatabaseSourceStatus;
-  databaseSourceImplemented: false;
+  databaseSourceImplemented: boolean;
 }
 
 export interface JsonFileResponse {
@@ -163,7 +163,7 @@ export interface RuntimeChannel {
 }
 
 export interface RuntimeListResponse<T> {
-  source: 'json';
+  source: ChannelSource;
   items: T[];
   total?: number;
   limit?: number;

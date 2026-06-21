@@ -14,4 +14,12 @@ export interface Channel {
   timezones: ChannelTimezone[] | null;
   available: ChannelAvailableInterval[] | null;
   'user-agent': string;
+  streamCandidates?: ChannelStreamCandidate[];
+}
+
+export interface ChannelStreamCandidate {
+  id: string;
+  title: string;
+  url: string;
+  userAgent: string;
 }

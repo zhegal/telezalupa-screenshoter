@@ -125,7 +125,9 @@
             <p class="eyebrow">PostgreSQL catalog</p>
             <h2>Database source</h2>
           </div>
-          <span class="pill level-warn">not implemented</span>
+          <span class="pill" :class="status?.database.implemented ? 'level-info' : 'level-warn'">
+            {{ status?.database.implemented ? 'implemented' : 'not implemented' }}
+          </span>
         </div>
 
         <dl class="meta-grid">
@@ -148,7 +150,8 @@
         </dl>
 
         <p class="catalog-warning">
-          Catalog data is available for administration, but the worker still has no database-backed channel loader.
+          Catalog data is available for the database channel source. Enabled playlists, channels, streams, and providers
+          are used by the worker when Database is active.
         </p>
       </section>
     </div>

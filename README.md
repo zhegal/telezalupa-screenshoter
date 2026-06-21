@@ -119,8 +119,8 @@ The active channel source is stored in PostgreSQL in `system_settings`.
 
 Supported sources:
 
-- `json`: current production behavior. The worker reads `data/playlists.json`, loads JSON playlists, and uses the existing in-memory playlist/channel selection logic.
-- `database`: selectable now, but the database-backed worker loader is intentionally not implemented yet. When selected, the worker does not read `data/playlists.json` and stays in a safe idle state.
+- `json`: legacy-compatible behavior. The worker reads `data/playlists.json`, loads JSON playlists, and uses the existing in-memory playlist/channel selection logic.
+- `database`: PostgreSQL catalog behavior. The worker reads enabled playlists, playlist-channel links, channels, channel-stream links, streams, providers, and timezone presets from PostgreSQL.
 
 Authenticated source endpoints:
 
@@ -138,9 +138,11 @@ DELETE /api/settings/sources/json-file
 { "source": "json" }
 ```
 
-Switching source restarts the in-process worker. Switching to `json` is allowed only when `data/playlists.json` exists and contains a valid array of playlist URL strings. Switching to `database` is always allowed.
+Switching source restarts the in-process worker. Switching to `json` is allowed only when `data/playlists.json` exists and contains a valid array of playlist URL strings. Switching to `database` is always allowed; an empty catalog leaves the worker in a safe idle/no channels state.
 
 The JSON file manager validates and pretty-formats the file on save. Overwrite and delete create timestamped backups in `data/`. Deleting the JSON file while `json` is active switches the active source to `database` and restarts the worker.
+
+Database source selection keeps playlist/channel queue semantics: playlists remain balancing groups, channels are queued inside playlists, and channel streams are tried by priority. Provider streams build final URLs from `Provider.urlTemplate` and `Stream.streamKey`; direct streams use `Stream.directUrl`. Channel timezones override playlist timezones, and project defaults are used when neither is set.
 
 ## Frontend
 
@@ -179,7 +181,7 @@ The catalog migration adds future database-source entities:
 - `TelegramChat`
 - `CaptionTemplate`
 
-These tables are available for preparing the future database-backed worker. The current worker still reads `data/playlists.json`; JSON import, bulk stream normalization, provider matching, and switching the worker to PostgreSQL are separate future stages.
+These tables back the `database` worker source. JSON source remains supported for compatibility and can be selected from Source Management.
 
 ## Database Catalog
 

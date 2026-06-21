@@ -167,7 +167,7 @@ export class SourceSettingsService {
     ]);
 
     return {
-      implemented: false,
+      implemented: true,
       sourceAvailable: true,
       playlistCount,
       channelCount,

@@ -8,6 +8,7 @@ import {
 import { CaptionBuilderService } from '../captions/caption-builder.service.js';
 import { FfmpegCaptureService } from '../capture/ffmpeg-capture.service.js';
 import { PlaylistSelectorService } from '../playlists/playlist-selector.service.js';
+import { DatabasePlaylistSelectorService } from '../playlists/database-playlist-selector.service.js';
 import { TelegramService } from '../telegram/telegram.service.js';
 import { WORKER_CONFIG, type WorkerConfig } from '../config/worker.config.js';
 import { PlaylistLoaderService } from '../playlists/playlist-loader.service.js';
@@ -15,6 +16,9 @@ import { SchedulerService } from './scheduler.service.js';
 import { WorkerStateService } from './worker-state.service.js';
 import { RuntimeLogService } from '../logs/runtime-log.service.js';
 import { SourceSettingsService } from '../settings/source-settings.service.js';
+import type { Channel } from '../channels/channel.types.js';
+import type { ChannelSource } from '../settings/source-settings.types.js';
+import type { SelectedChannel } from '../playlists/playlist.types.js';
 
 export interface WorkerRunResult {
   status: 'started' | 'stopped' | 'busy' | 'completed' | 'ignored';
@@ -29,6 +33,8 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject(WORKER_CONFIG) private readonly workerConfig: WorkerConfig,
     @Inject(PlaylistLoaderService) private readonly playlistLoader: PlaylistLoaderService,
     @Inject(PlaylistSelectorService) private readonly playlistSelector: PlaylistSelectorService,
+    @Inject(DatabasePlaylistSelectorService)
+    private readonly databasePlaylistSelector: DatabasePlaylistSelectorService,
     @Inject(FfmpegCaptureService) private readonly capture: FfmpegCaptureService,
     @Inject(TelegramService) private readonly telegram: TelegramService,
     @Inject(CaptionBuilderService) private readonly captionBuilder: CaptionBuilderService,
@@ -71,6 +77,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     this.workerState.markRestarted();
     this.workerState.clearRuntimeCaches();
     this.playlistSelector.reset();
+    this.databasePlaylistSelector.reset();
     const sourceStatus = await this.refreshSourceStatus();
 
     if (sourceStatus.activeChannelSource === 'json') {
@@ -117,21 +124,18 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
   private async runCycleStep(): Promise<void> {
     const sourceStatus = await this.refreshSourceStatus();
 
-    if (sourceStatus.activeChannelSource === 'database') {
-      const message = 'Database channel source is selected but worker database loader is not implemented yet';
-      this.logger.warn(message);
-      this.logs.add('warn', 'worker', message);
-      this.scheduleNext(this.workerConfig.retryIntervalMs);
-      return;
-    }
-
-    if (!sourceStatus.json.sourceAvailable) {
+    if (sourceStatus.activeChannelSource === 'json' && !sourceStatus.json.sourceAvailable) {
       const message = sourceStatus.json.error || 'JSON channel source is not available';
       this.logger.warn(message);
       this.logs.add('warn', 'worker', message, {
         filePath: sourceStatus.json.path,
       });
       this.scheduleNext(this.workerConfig.retryIntervalMs);
+      return;
+    }
+
+    if (sourceStatus.activeChannelSource === 'database') {
+      await this.runDatabaseCycleStep();
       return;
     }
 
@@ -144,10 +148,54 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       return;
     }
 
+    await this.processSelectedChannel(selected, sourceStatus.activeChannelSource);
+  }
+
+  private async runDatabaseCycleStep(): Promise<void> {
+    const maxAttempts = 100;
+    const attemptedChannels = new Set<string>();
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const selected = await this.databasePlaylistSelector.selectChannel();
+
+      if (!selected) {
+        this.logger.warn('No available database channels now');
+        this.logs.add('warn', 'worker', 'No available database channels now');
+        this.scheduleNext(this.workerConfig.retryIntervalMs);
+        return;
+      }
+
+      const selectedKey = `${selected.playlistUrl}\n${selected.channel.title}\n${selected.channel.url}`;
+
+      if (attemptedChannels.has(selectedKey)) {
+        this.logger.warn('Database channel attempts exhausted');
+        this.logs.add('warn', 'worker', 'Database channel attempts exhausted');
+        this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
+        return;
+      }
+
+      attemptedChannels.add(selectedKey);
+
+      const success = await this.processSelectedChannel(selected, 'database', { scheduleOnCaptureFailure: false });
+
+      if (success) {
+        return;
+      }
+    }
+
+    this.logger.warn('Database channel attempts exhausted');
+    this.logs.add('warn', 'worker', 'Database channel attempts exhausted');
+    this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
+  }
+
+  private async processSelectedChannel(
+    selected: SelectedChannel,
+    source: ChannelSource,
+    options: { scheduleOnCaptureFailure?: boolean } = {},
+  ): Promise<boolean> {
     const { channel, playlistUrl, currentLeft, total } = selected;
 
     this.workerState.markSelected(playlistUrl, channel.title);
-    this.workerState.markChannelAttempt(playlistUrl, channel.url);
     this.logger.log(`Target: ${channel.title} (${total - currentLeft}/${total}) from ${playlistUrl}`);
     this.logs.add('info', 'worker', 'Selected channel', {
       playlistUrl,
@@ -156,19 +204,24 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       total,
     });
 
-    const photoBuffer = await this.capture.captureScreenshot(channel);
+    const captureResult = await this.captureWithFallback(channel, playlistUrl, source);
 
-    if (!photoBuffer) {
+    if (!captureResult) {
       this.workerState.markError('Screenshot capture failed', playlistUrl, channel.url);
       this.logs.add('error', 'ffmpeg', 'Screenshot capture failed', {
         playlistUrl,
         channelTitle: channel.title,
         channelUrl: channel.url,
       });
-      this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
-      return;
+
+      if (options.scheduleOnCaptureFailure !== false) {
+        this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
+      }
+
+      return false;
     }
 
+    const { channel: capturedChannel, photoBuffer } = captureResult;
     const caption = this.captionBuilder.buildCaption(channel);
 
     const sent = await this.telegram.sendPhoto(photoBuffer, caption);
@@ -178,14 +231,14 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       this.logs.add('error', 'telegram', 'Telegram send failed', {
         playlistUrl,
         channelTitle: channel.title,
-        channelUrl: channel.url,
+        channelUrl: capturedChannel.url,
         error: sent.errorMessage,
       });
       this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
-      return;
+      return true;
     }
 
-    this.workerState.markSuccess(playlistUrl, channel.url, channel.title, sent.messageId);
+    this.workerState.markSuccess(playlistUrl, capturedChannel.url, channel.title, sent.messageId);
     this.logs.add('info', 'telegram', 'Telegram photo sent', {
       playlistUrl,
       channelTitle: channel.title,
@@ -193,6 +246,50 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     });
 
     this.scheduleNext();
+    return true;
+  }
+
+  private async captureWithFallback(
+    channel: Channel,
+    playlistUrl: string,
+    source: ChannelSource,
+  ): Promise<{ channel: Channel; photoBuffer: Buffer } | null> {
+    const streamCandidates =
+      source === 'database' && channel.streamCandidates?.length
+        ? channel.streamCandidates
+        : [{ id: 'default', title: channel.title, url: channel.url, userAgent: channel['user-agent'] }];
+
+    for (const stream of streamCandidates) {
+      const streamChannel: Channel = {
+        ...channel,
+        url: stream.url,
+        'user-agent': stream.userAgent,
+      };
+
+      this.workerState.markChannelAttempt(playlistUrl, streamChannel.url);
+      this.logs.add('info', 'worker', 'Trying stream', {
+        playlistUrl,
+        channelTitle: channel.title,
+        streamTitle: stream.title,
+        streamUrl: stream.url,
+      });
+
+      const photoBuffer = await this.capture.captureScreenshot(streamChannel);
+
+      if (photoBuffer) {
+        return { channel: streamChannel, photoBuffer };
+      }
+
+      this.workerState.markError('Screenshot capture failed', playlistUrl, streamChannel.url);
+      this.logs.add('error', 'ffmpeg', 'Screenshot capture failed', {
+        playlistUrl,
+        channelTitle: channel.title,
+        channelUrl: streamChannel.url,
+        streamTitle: stream.title,
+      });
+    }
+
+    return null;
   }
 
   private scheduleNext(delayMs = this.workerConfig.intervalMs): void {
