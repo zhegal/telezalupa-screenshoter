@@ -52,13 +52,13 @@ const auth = useAuthStore();
 
 const navItems: { to: string; label: string; icon: AppIconName }[] = [
   { to: '/', label: t.dashboard, icon: 'dashboard' },
-  { to: '/worker', label: t.sections.worker, icon: 'play' },
-  { to: '/telegram', label: t.sections.telegram, icon: 'send' },
   { to: '/playlists', label: t.sections.playlists, icon: 'file-list' },
   { to: '/channels', label: t.sections.channels, icon: 'radio' },
-  { to: '/catalog', label: t.sections.catalog, icon: 'database' },
-  { to: '/logs', label: t.sections.logs, icon: 'logs' },
+  { to: '/catalog/import', label: t.sections.import, icon: 'database' },
   { to: '/settings', label: t.sections.settings, icon: 'settings' },
+  { to: '/worker', label: t.sections.worker, icon: 'play' },
+  { to: '/logs', label: t.sections.logs, icon: 'logs' },
+  { to: '/catalog', label: t.sections.catalog, icon: 'database' },
 ];
 
 async function handleLogout() {

@@ -3,8 +3,8 @@
     <section class="panel wide-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Database catalog</p>
-          <h2>Каталог</h2>
+          <p class="eyebrow">Database references</p>
+          <h2>Справочники</h2>
         </div>
         <span class="pill" :class="activeSource === 'database' ? 'level-info' : 'level-warn'">
           Active source: {{ activeSourceLabel }}
@@ -298,101 +298,17 @@ import {
   type SourceSettingsStatus,
 } from '../../services/api';
 import StreamBulkTools from './StreamBulkTools.vue';
-
-type FieldType = 'text' | 'number' | 'textarea' | 'checkbox' | 'provider';
-
-interface FieldConfig {
-  name: string;
-  label: string;
-  type: FieldType;
-  placeholder?: string;
-}
-
-interface EntityConfig {
-  entity: CatalogEntity;
-  label: string;
-  fields: FieldConfig[];
-}
-
-const entityConfigs: EntityConfig[] = [
-  {
-    entity: 'providers',
-    label: 'Providers',
-    fields: [
-      { name: 'title', label: 'Название', type: 'text' },
-      {
-        name: 'urlTemplate',
-        label: 'URL template',
-        type: 'text',
-        placeholder: 'https://host/{streamKey}/playlist.m3u8',
-      },
-      { name: 'enabled', label: 'Enabled', type: 'checkbox' },
-    ],
-  },
-  {
-    entity: 'streams',
-    label: 'Streams',
-    fields: [
-      { name: 'title', label: 'Название', type: 'text' },
-      { name: 'providerId', label: 'Provider', type: 'provider' },
-      { name: 'streamKey', label: 'Stream key', type: 'text' },
-      { name: 'directUrl', label: 'Direct URL', type: 'text' },
-      { name: 'userAgent', label: 'User-Agent', type: 'text' },
-      { name: 'priority', label: 'Priority', type: 'number' },
-      { name: 'enabled', label: 'Enabled', type: 'checkbox' },
-    ],
-  },
-  {
-    entity: 'channels',
-    label: 'Channels',
-    fields: [
-      { name: 'title', label: 'Название', type: 'text' },
-      { name: 'description', label: 'Описание', type: 'textarea' },
-      { name: 'defaultDelaySeconds', label: 'Default delay seconds', type: 'number' },
-      { name: 'defaultScale', label: 'Default scale', type: 'text', placeholder: '1280:720' },
-      { name: 'enabled', label: 'Enabled', type: 'checkbox' },
-    ],
-  },
-  {
-    entity: 'playlists',
-    label: 'Playlists',
-    fields: [
-      { name: 'title', label: 'Название', type: 'text' },
-      { name: 'priority', label: 'Priority', type: 'number' },
-      { name: 'enabled', label: 'Enabled', type: 'checkbox' },
-    ],
-  },
-  {
-    entity: 'timezones',
-    label: 'Timezones',
-    fields: [
-      { name: 'timezone', label: 'Timezone', type: 'text', placeholder: 'Europe/Kyiv' },
-      { name: 'label', label: 'Label', type: 'text', placeholder: 'Київ' },
-      { name: 'priority', label: 'Priority', type: 'number' },
-      { name: 'enabled', label: 'Enabled', type: 'checkbox' },
-    ],
-  },
-  {
-    entity: 'telegram-chats',
-    label: 'Telegram Chats',
-    fields: [
-      { name: 'title', label: 'Название', type: 'text' },
-      { name: 'chatId', label: 'Chat ID', type: 'text' },
-      { name: 'isDefault', label: 'Default', type: 'checkbox' },
-      { name: 'enabled', label: 'Enabled', type: 'checkbox' },
-    ],
-  },
-  {
-    entity: 'caption-templates',
-    label: 'Caption Templates',
-    fields: [
-      { name: 'title', label: 'Название', type: 'text' },
-      { name: 'template', label: 'Template', type: 'textarea' },
-      { name: 'isDefault', label: 'Default', type: 'checkbox' },
-      { name: 'enabled', label: 'Enabled', type: 'checkbox' },
-    ],
-  },
-];
+import { entityConfigs } from './catalog-page.config';
+import {
+  checkboxLabel,
+  detailText,
+  displayTitle,
+  groupFields,
+  relationSummaryParts as getRelationSummaryParts,
+  summaryText as getSummaryText,
+  tabLabel as getTabLabel,
+  timezoneSummaryParts as getTimezoneSummaryParts,
+} from './catalog-page.helpers';
 
 const activeEntity = ref<CatalogEntity>('providers');
 const router = useRouter();
@@ -439,8 +355,8 @@ const activeSource = computed(() => sourceStatus.value?.activeChannelSource || '
 const activeSourceLabel = computed(() => (activeSource.value === 'database' ? 'Database' : 'JSON'));
 const catalogSourceDescription = computed(() =>
   activeSource.value === 'database'
-    ? 'Worker сейчас использует PostgreSQL catalog как активный источник каналов. Изменения в Providers, Streams, Channels, Playlists и Timezones влияют на database source.'
-    : 'Worker сейчас использует JSON source. PostgreSQL catalog можно редактировать и импортировать заранее; он станет активным после переключения Source Management на Database.',
+    ? 'Worker сейчас использует PostgreSQL. Здесь находятся вспомогательные справочники: провайдеры, таймзоны, Telegram и подписи.'
+    : 'Worker сейчас использует JSON source. Справочники можно подготовить заранее; они станут активными после переключения источника на Database.',
 );
 
 onMounted(async () => {
@@ -640,10 +556,6 @@ function serializeForm() {
   return payload;
 }
 
-function displayTitle(item: CatalogItem) {
-  return String(item.title || item.label || item.timezone || item.chatId || item.id);
-}
-
 function stringFormValue(name: string) {
   const value = form[name];
   return typeof value === 'string' ? value : '';
@@ -688,127 +600,19 @@ async function changePageSize(nextPageSize: number) {
   await loadItems();
 }
 
-function detailText(item: CatalogItem) {
-  if ('urlTemplate' in item)
-    return String(item.urlTemplate || '');
-  if ('directUrl' in item) return String(item.directUrl || item.streamKey || '');
-  if ('description' in item) return String(item.description || '');
-  if ('timezone' in item) return `${item.timezone || ''} ${item.label || ''}`;
-  if ('chatId' in item) return String(item.chatId || '');
-  if ('template' in item) return String(item.template || '').slice(0, 120);
-  return `priority: ${item.priority ?? 0}`;
-}
-
 function summaryText(item: CatalogItem) {
-  return relationSummaryParts(item).concat(timezoneSummaryParts(item)).join(' · ') || '—';
+  return getSummaryText(activeEntity.value, item);
 }
 
 function relationSummaryParts(item: CatalogItem | null) {
-  const count = item?._count as Record<string, number> | undefined;
-
-  if (!count) {
-    return [];
-  }
-
-  if (activeEntity.value === 'channels') {
-    return [`Streams: ${count.channelStreams ?? 0}`, `Playlists: ${count.playlistChannels ?? 0}`];
-  }
-
-  if (activeEntity.value === 'playlists') {
-    return [`Channels: ${count.playlistChannels ?? 0}`];
-  }
-
-  if (activeEntity.value === 'streams') {
-    return [`Channels: ${count.channelStreams ?? 0}`];
-  }
-
-  if (activeEntity.value === 'providers') {
-    return [`Streams: ${count.streams ?? 0}`];
-  }
-
-  return [];
+  return getRelationSummaryParts(activeEntity.value, item);
 }
 
 function timezoneSummaryParts(item: CatalogItem | null) {
-  const count = item?._count as Record<string, number> | undefined;
-
-  if (!count) {
-    return [];
-  }
-
-  if (activeEntity.value === 'channels') {
-    return [`Timezones: ${count.channelTimezones ?? 0}`];
-  }
-
-  if (activeEntity.value === 'playlists') {
-    return [`Timezones: ${count.playlistTimezones ?? 0}`];
-  }
-
-  if (activeEntity.value === 'timezones') {
-    return [`Channels: ${count.channelTimezones ?? 0}`, `Playlists: ${count.playlistTimezones ?? 0}`];
-  }
-
-  return [];
+  return getTimezoneSummaryParts(activeEntity.value, item);
 }
 
 function tabLabel(tab: 'basic' | 'relations' | 'timezones') {
-  if (tab === 'basic') return 'Основное';
-  if (activeEntity.value === 'channels' && tab === 'relations') return 'Потоки';
-  if (activeEntity.value === 'playlists' && tab === 'relations') return 'Каналы';
-  return 'Таймзоны';
-}
-
-function groupFields(entity: CatalogEntity, fields: FieldConfig[]) {
-  const byName = new Map(fields.map((field) => [field.name, field]));
-  const createGroup = (title: string, names: string[], description = '') => ({
-    title,
-    description,
-    fields: names.map((name) => byName.get(name)).filter((field): field is FieldConfig => Boolean(field)),
-  });
-
-  if (entity === 'providers') {
-    return [
-      createGroup('Основное', ['title', 'urlTemplate'], 'URL Template используется worker для формирования рабочего URL потока через {streamKey}.'),
-      createGroup('Статус', ['enabled']),
-    ];
-  }
-
-  if (entity === 'streams') {
-    return [
-      createGroup('Основное', ['title', 'providerId']),
-      createGroup('Источник', ['streamKey', 'directUrl', 'userAgent']),
-      createGroup('Порядок и статус', ['priority', 'enabled']),
-    ];
-  }
-
-  if (entity === 'channels') {
-    return [
-      createGroup('Основное', ['title', 'description']),
-      createGroup('Параметры захвата', ['defaultDelaySeconds', 'defaultScale']),
-      createGroup('Статус', ['enabled']),
-    ];
-  }
-
-  if (entity === 'playlists') {
-    return [createGroup('Основное', ['title', 'priority']), createGroup('Статус', ['enabled'])];
-  }
-
-  if (entity === 'timezones') {
-    return [createGroup('Основное', ['timezone', 'label', 'priority']), createGroup('Статус', ['enabled'])];
-  }
-
-  if (entity === 'telegram-chats') {
-    return [createGroup('Основное', ['title', 'chatId']), createGroup('Статус', ['isDefault', 'enabled'])];
-  }
-
-  return [createGroup('Основное', ['title', 'template']), createGroup('Статус', ['isDefault', 'enabled'])];
-}
-
-function checkboxLabel(name: string) {
-  if (name === 'isDefault') {
-    return 'По умолчанию';
-  }
-
-  return 'Активен';
+  return getTabLabel(activeEntity.value, tab);
 }
 </script>

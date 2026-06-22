@@ -26,10 +26,6 @@
           <dt>Database source</dt>
           <dd>{{ status?.database.sourceAvailable ? 'available' : 'unavailable' }}</dd>
         </div>
-        <div>
-          <dt>Database worker loader</dt>
-          <dd>{{ status?.database.implemented ? 'implemented' : 'not implemented' }}</dd>
-        </div>
       </dl>
 
       <div class="source-actions">
@@ -55,9 +51,6 @@
 
       <p v-if="status && !status.json.sourceAvailable" class="catalog-warning">
         JSON source cannot be selected: {{ status.json.error || 'file is not valid' }}.
-      </p>
-      <p v-if="status?.activeChannelSource === 'database' && !status.database.implemented" class="catalog-warning">
-        Database source is selected, but the database worker loader is not implemented yet. Worker will stay idle.
       </p>
       <p v-if="message" class="bulk-stats">{{ message }}</p>
       <p v-if="error" class="form-error">{{ error }}</p>
@@ -125,8 +118,8 @@
             <p class="eyebrow">PostgreSQL catalog</p>
             <h2>Database source</h2>
           </div>
-          <span class="pill" :class="status?.database.implemented ? 'level-info' : 'level-warn'">
-            {{ status?.database.implemented ? 'implemented' : 'not implemented' }}
+          <span class="pill" :class="status?.activeChannelSource === 'database' ? 'level-info' : 'level-warn'">
+            {{ status?.activeChannelSource === 'database' ? 'active' : 'available' }}
           </span>
         </div>
 
@@ -150,8 +143,8 @@
         </dl>
 
         <p class="catalog-warning">
-          Catalog data is available for the database channel source. Enabled playlists, channels, streams, and providers
-          are used by the worker when Database is active.
+          Database source uses enabled playlists, channels, streams, and providers from PostgreSQL. Main playlist
+          and channel editing is available from the Playlists section.
         </p>
       </section>
     </div>

@@ -3,19 +3,23 @@
     <section class="panel wide-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Source: {{ sourceLabel }}</p>
-          <h2>Channels</h2>
+          <p class="eyebrow">Источник: {{ sourceLabel }}</p>
+          <h2>Поиск каналов</h2>
         </div>
         <button class="ghost-button control-button" type="button" :disabled="loading" @click="refresh">
           Обновить
         </button>
       </div>
 
+      <p class="catalog-warning">
+        Найдите канал из Telegram-поста по названию и откройте его редактирование. Основное управление каналами находится внутри плейлиста.
+      </p>
+
       <div class="filter-row">
         <input v-model="search" class="filter-input" type="search" placeholder="Поиск по названию" @keydown.enter="refresh" />
         <select v-model="filter" class="filter-input compact" @change="refresh">
-          <option value="all">All</option>
-          <option value="available">Available now</option>
+          <option value="all">Все</option>
+          <option value="available">Доступны сейчас</option>
           <option value="errors">Errors</option>
         </select>
         <button class="ghost-button control-button" type="button" :disabled="loading" @click="refresh">
@@ -27,14 +31,14 @@
         <table class="runtime-table">
           <thead>
             <tr>
-              <th>Title</th>
-              <th>Available</th>
+              <th>Канал</th>
+              <th>Доступен</th>
               <th>Delay</th>
               <th>Scale</th>
               <th>User-Agent</th>
-              <th>Last attempt</th>
-              <th>Failures</th>
-              <th>Playlist</th>
+              <th>Последняя попытка</th>
+              <th>Ошибки</th>
+              <th>Плейлист</th>
             </tr>
           </thead>
           <tbody>
@@ -72,7 +76,7 @@
               </td>
             </tr>
             <tr v-if="channels.length === 0">
-              <td colspan="8" class="empty-cell">No channels match filters</td>
+              <td colspan="8" class="empty-cell">Каналы не найдены</td>
             </tr>
           </tbody>
         </table>

@@ -21,10 +21,6 @@
           <dd :class="{ truncate: item.truncate }">{{ item.value }}</dd>
         </div>
       </dl>
-
-      <p v-if="worker?.activeChannelSource === 'database' && !worker.databaseSourceImplemented" class="catalog-warning">
-        Database source is selected, but the worker database loader is not implemented yet. Worker will stay idle.
-      </p>
     </section>
 
     <section class="panel wide-panel">
@@ -72,7 +68,6 @@ const statusItems = computed(() => {
     { label: 'Source', value: value?.activeChannelSource || value?.source || 'json' },
     { label: 'JSON source', value: value?.jsonSourceAvailable ? 'available' : 'unavailable' },
     { label: 'Database source', value: value?.databaseSourceAvailable ? 'available' : 'unavailable' },
-    { label: 'Database loader', value: value?.databaseSourceImplemented ? 'implemented' : 'not implemented' },
     { label: 'Current channel', value: value?.currentChannelTitle || '—', truncate: true },
     { label: 'Current playlist', value: value?.currentPlaylistUrl || '—', truncate: true },
     { label: 'Last channel', value: value?.lastChannelTitle || '—', truncate: true },

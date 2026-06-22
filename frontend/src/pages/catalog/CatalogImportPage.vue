@@ -4,12 +4,12 @@
       <div class="panel-header">
         <div>
           <p class="eyebrow">JSON Import Wizard</p>
-          <h2>Импорт JSON в Database Catalog</h2>
+          <h2>Импорт JSON в базу</h2>
         </div>
       </div>
 
       <p class="catalog-warning">
-        Импорт всегда проходит через preview и наполняет PostgreSQL catalog. Активный источник worker управляется отдельно в Settings -> Sources.
+        Импорт всегда проходит через preview и наполняет PostgreSQL. Активный источник worker управляется отдельно в разделе Источники.
       </p>
 
       <div class="catalog-tabs">
@@ -30,7 +30,7 @@
       <div class="panel-header">
         <div>
           <p class="eyebrow">Step 1</p>
-          <h2>Source</h2>
+          <h2>Источник</h2>
         </div>
       </div>
 
@@ -38,8 +38,8 @@
         <label>
           <span>Источник</span>
           <select v-model="payload.sourceType">
-            <option value="paste">Paste JSON</option>
-            <option value="existingSource">Import from data/playlists.json source</option>
+            <option value="paste">Вставить JSON</option>
+            <option value="existingSource">Загрузить из data/playlists.json</option>
           </select>
         </label>
 
@@ -49,7 +49,7 @@
         </label>
 
         <label v-else>
-          <span>Source URL</span>
+          <span>URL источника</span>
           <select v-model="payload.sourceUrl">
             <option value="">Выберите URL</option>
             <option v-for="source in sources" :key="source" :value="source">{{ source }}</option>
@@ -64,28 +64,28 @@
       <div class="panel-header">
         <div>
           <p class="eyebrow">Step 2</p>
-          <h2>Playlist</h2>
+          <h2>Плейлист</h2>
         </div>
       </div>
 
       <div class="catalog-form import-form">
         <label>
-          <span>Target mode</span>
+          <span>Куда импортировать</span>
           <select v-model="payload.targetMode">
-            <option value="newPlaylist">Create new Playlist</option>
-            <option value="existingPlaylist">Use existing Playlist</option>
+            <option value="newPlaylist">Создать новый плейлист</option>
+            <option value="existingPlaylist">Добавить в существующий плейлист</option>
           </select>
         </label>
 
         <label v-if="payload.targetMode === 'newPlaylist'">
-          <span>Playlist title</span>
+          <span>Название плейлиста</span>
           <input v-model="payload.playlistTitle" type="text" />
         </label>
 
         <label v-else>
-          <span>Playlist</span>
+          <span>Плейлист</span>
           <select v-model="payload.playlistId">
-            <option value="">Выберите Playlist</option>
+            <option value="">Выберите плейлист</option>
             <option v-for="playlist in playlists" :key="playlist.id" :value="playlist.id">
               {{ displayTitle(playlist) }}
             </option>
@@ -94,7 +94,7 @@
 
         <label class="toggle-line">
           <input v-model="payload.skipExactDuplicates" type="checkbox" />
-          <span>Skip exact duplicates inside selected Playlist</span>
+          <span>Пропускать точные дубликаты внутри выбранного плейлиста</span>
         </label>
 
         <button class="action-button" type="button" :disabled="loading" @click="buildPreview">
@@ -180,7 +180,7 @@
       <div class="panel-header">
         <div>
           <p class="eyebrow">Step 4</p>
-          <h2>Apply result</h2>
+          <h2>Результат импорта</h2>
         </div>
       </div>
 
@@ -192,10 +192,15 @@
       </dl>
 
       <div class="control-row">
-        <RouterLink class="ghost-button control-button" to="/catalog">Open Catalog</RouterLink>
-        <RouterLink class="ghost-button control-button" to="/catalog">Open Playlist</RouterLink>
-        <RouterLink class="ghost-button control-button" to="/catalog">Open Channels</RouterLink>
-        <RouterLink class="ghost-button control-button" to="/catalog">Open Streams</RouterLink>
+        <RouterLink class="ghost-button control-button" to="/playlists">Открыть плейлисты</RouterLink>
+        <RouterLink
+          v-if="result?.playlistId"
+          class="ghost-button control-button"
+          :to="`/catalog/playlists/${result.playlistId}`"
+        >
+          Открыть импортированный плейлист
+        </RouterLink>
+        <RouterLink class="ghost-button control-button" to="/channels">Найти каналы</RouterLink>
       </div>
     </section>
   </AdminLayout>
@@ -218,10 +223,10 @@ import {
 type Step = 'source' | 'playlist' | 'preview' | 'result';
 
 const steps: { id: Step; label: string }[] = [
-  { id: 'source', label: '1. Source' },
-  { id: 'playlist', label: '2. Playlist' },
+  { id: 'source', label: '1. Источник' },
+  { id: 'playlist', label: '2. Плейлист' },
   { id: 'preview', label: '3. Preview' },
-  { id: 'result', label: '4. Apply result' },
+  { id: 'result', label: '4. Применение' },
 ];
 
 const step = ref<Step>('source');

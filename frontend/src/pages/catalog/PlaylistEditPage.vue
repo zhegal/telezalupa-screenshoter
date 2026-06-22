@@ -3,10 +3,10 @@
     <section class="panel wide-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Playlist</p>
+          <p class="eyebrow">Плейлист</p>
           <h2>{{ playlist?.title || 'Playlist' }}</h2>
         </div>
-        <RouterLink class="ghost-button control-button" to="/catalog">Назад</RouterLink>
+        <RouterLink class="ghost-button control-button" to="/playlists">Назад к плейлистам</RouterLink>
       </div>
 
       <div class="editor-tabs">
@@ -20,7 +20,7 @@
     <section v-if="activeTab === 'basic'" class="panel wide-panel">
       <form class="catalog-form compact-editor" @submit.prevent="savePlaylist">
         <label>
-          Title
+          Название
           <input v-model="playlistForm.title" />
         </label>
         <label>
@@ -40,7 +40,7 @@
     <section v-if="activeTab === 'channels'" class="panel wide-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Playlist channels</p>
+          <p class="eyebrow">Содержимое плейлиста</p>
           <h2>Каналы плейлиста</h2>
         </div>
         <button class="action-button" type="button" @click="openChannelModal">Добавить канал</button>
@@ -80,9 +80,9 @@
               </th>
               <th>Название</th>
               <th>Описание</th>
-              <th>Streams</th>
-              <th>Timezones</th>
-              <th>Enabled</th>
+              <th>Потоки</th>
+              <th>Таймзоны</th>
+              <th>Статус</th>
               <th></th>
             </tr>
           </thead>
@@ -166,7 +166,7 @@
       <form class="catalog-form catalog-modal" @submit.prevent="createChannel">
         <div class="panel-header">
           <div>
-            <p class="eyebrow">Playlist channel</p>
+            <p class="eyebrow">Канал плейлиста</p>
             <h2>Добавить канал</h2>
           </div>
           <button class="ghost-button control-button" type="button" @click="closeChannelModal">Cancel</button>
@@ -233,7 +233,7 @@
     <div v-if="moveModalOpen" class="modal-backdrop" role="presentation" @click.self="moveModalOpen = false">
       <form class="catalog-form catalog-modal small-modal" @submit.prevent="moveChannel">
         <h2>Перенести канал</h2>
-        <label>Playlist<select v-model="moveTargetPlaylistId"><option value="">Выберите Playlist</option><option v-for="item in playlists" :key="item.id" :value="item.id">{{ displayTitle(item) }}</option></select></label>
+        <label>Плейлист<select v-model="moveTargetPlaylistId"><option value="">Выберите плейлист</option><option v-for="item in playlists" :key="item.id" :value="item.id">{{ displayTitle(item) }}</option></select></label>
         <div class="modal-actions"><button class="ghost-button control-button" type="button" @click="moveModalOpen = false">Отмена</button><button class="action-button" type="submit">Перенести</button></div>
       </form>
     </div>
@@ -241,7 +241,7 @@
     <div v-if="copyModalOpen" class="modal-backdrop" role="presentation" @click.self="copyModalOpen = false">
       <form class="catalog-form catalog-modal small-modal" @submit.prevent="copyChannels">
         <h2>Копировать канал</h2>
-        <label>Playlist<select v-model="copyTargetPlaylistId"><option value="">Выберите Playlist</option><option :value="playlistId">Текущий Playlist</option><option v-for="item in playlists" :key="item.id" :value="item.id">{{ displayTitle(item) }}</option></select></label>
+        <label>Плейлист<select v-model="copyTargetPlaylistId"><option value="">Выберите плейлист</option><option :value="playlistId">Текущий плейлист</option><option v-for="item in playlists" :key="item.id" :value="item.id">{{ displayTitle(item) }}</option></select></label>
         <div class="modal-actions"><button class="ghost-button control-button" type="button" @click="copyModalOpen = false">Отмена</button><button class="action-button" type="submit">Копировать</button></div>
       </form>
     </div>

@@ -72,10 +72,6 @@
           <dd>{{ system?.databaseSourceAvailable ? 'available' : 'unavailable' }}</dd>
         </div>
         <div>
-          <dt>Database worker loader</dt>
-          <dd>{{ system?.databaseSourceImplemented ? 'implemented' : 'not implemented' }}</dd>
-        </div>
-        <div>
           <dt>Cycles</dt>
           <dd>{{ system?.worker.cyclesCount ?? 0 }}</dd>
         </div>
@@ -88,10 +84,6 @@
           <dd>{{ system?.worker.errorCount ?? 0 }}</dd>
         </div>
       </dl>
-
-      <p v-if="system?.activeChannelSource === 'database' && !system.databaseSourceImplemented" class="catalog-warning">
-        Database source is selected, but the worker database loader is not implemented yet. Worker will stay idle.
-      </p>
     </section>
 
     <section class="sections-block" aria-labelledby="sections-title">
@@ -145,18 +137,6 @@ const workerStatus = computed(() => {
 
 const sections: { to: string; title: string; description: string; icon: AppIconName }[] = [
   {
-    to: '/worker',
-    title: t.sections.worker,
-    description: t.sectionDescriptions.worker,
-    icon: 'play',
-  },
-  {
-    to: '/telegram',
-    title: t.sections.telegram,
-    description: t.sectionDescriptions.telegram,
-    icon: 'send',
-  },
-  {
     to: '/playlists',
     title: t.sections.playlists,
     description: t.sectionDescriptions.playlists,
@@ -169,16 +149,34 @@ const sections: { to: string; title: string; description: string; icon: AppIconN
     icon: 'radio',
   },
   {
-    to: '/catalog',
-    title: t.sections.catalog,
-    description: t.sectionDescriptions.catalog,
+    to: '/catalog/import',
+    title: t.sections.import,
+    description: t.sectionDescriptions.import,
     icon: 'database',
+  },
+  {
+    to: '/settings',
+    title: t.sections.settings,
+    description: t.sectionDescriptions.settings,
+    icon: 'settings',
+  },
+  {
+    to: '/worker',
+    title: t.sections.worker,
+    description: t.sectionDescriptions.worker,
+    icon: 'play',
   },
   {
     to: '/logs',
     title: t.sections.logs,
     description: t.sectionDescriptions.logs,
     icon: 'logs',
+  },
+  {
+    to: '/catalog',
+    title: t.sections.catalog,
+    description: t.sectionDescriptions.catalog,
+    icon: 'database',
   },
 ];
 

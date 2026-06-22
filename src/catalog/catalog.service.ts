@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 import prismaClient from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  getCatalogEntityConfig,
+  type PrismaDelegate,
+} from './catalog-entity.config.js';
 import type {
   BulkOperationStats,
   BulkRelationBody,
@@ -15,33 +19,29 @@ import type {
   CatalogRelationBody,
   StreamTransformPreviewItem,
 } from './catalog.types.js';
+import {
+  booleanOrDefault,
+  normalizeOptionalString,
+  numberOrDefault,
+  numberOrNull,
+  parseLimit,
+  parseOffset,
+  requiredString,
+  uniqueIds,
+  uniqueOptionalIds,
+} from './catalog-value.utils.js';
 
 const { Prisma } = prismaClient;
-
-type PrismaDelegate = {
-  findMany(args?: Record<string, unknown>): Promise<unknown[]>;
-  findUnique(args: Record<string, unknown>): Promise<unknown | null>;
-  count(args?: Record<string, unknown>): Promise<number>;
-  create(args: Record<string, unknown>): Promise<unknown>;
-  update(args: Record<string, unknown>): Promise<unknown>;
-  delete(args: Record<string, unknown>): Promise<unknown>;
-};
-
-interface EntityConfig {
-  delegate: PrismaDelegate;
-  searchableFields: string[];
-  include?: Record<string, unknown>;
-}
 
 @Injectable()
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(entity: CatalogEntity, query: CatalogListQuery) {
-    const config = this.getConfig(entity);
+    const config = getCatalogEntityConfig(this.prisma, entity);
     const where = this.buildWhere(config.searchableFields, query);
-    const limit = this.parseLimit(query.limit);
-    const offset = this.parseOffset(query.offset);
+    const limit = parseLimit(query.limit);
+    const offset = parseOffset(query.offset);
     const [items, total] = await Promise.all([
       config.delegate.findMany({
         where,
@@ -64,7 +64,7 @@ export class CatalogService {
   }
 
   async get(entity: CatalogEntity, id: string) {
-    const config = this.getConfig(entity);
+    const config = getCatalogEntityConfig(this.prisma, entity);
     const item = await config.delegate.findUnique({
       where: { id },
       include: config.include,
@@ -78,14 +78,14 @@ export class CatalogService {
   }
 
   async create(entity: CatalogEntity, body: Record<string, unknown>) {
-    const config = this.getConfig(entity);
+    const config = getCatalogEntityConfig(this.prisma, entity);
     const data = this.normalizeEntityData(entity, body);
 
     return config.delegate.create({ data, include: config.include });
   }
 
   async update(entity: CatalogEntity, id: string, body: Record<string, unknown>) {
-    const config = this.getConfig(entity);
+    const config = getCatalogEntityConfig(this.prisma, entity);
     const data = this.normalizeEntityData(entity, body, true);
 
     try {
@@ -110,7 +110,7 @@ export class CatalogService {
       return { ok: true };
     }
 
-    const config = this.getConfig(entity);
+    const config = getCatalogEntityConfig(this.prisma, entity);
 
     try {
       await config.delegate.delete({ where: { id } });
@@ -141,14 +141,14 @@ export class CatalogService {
   async createPlaylistOwnedChannel(playlistId: string, body: Record<string, unknown>) {
     await this.ensureExists(this.prisma.playlist, playlistId, 'Playlist not found');
     const streamData = this.normalizeOwnedStreamData(body);
-    const timezonePresetIds = this.uniqueOptionalIds(body.timezonePresetIds);
+    const timezonePresetIds = uniqueOptionalIds(body.timezonePresetIds);
 
     return this.prisma.$transaction(async (tx) => {
       const channel = await tx.channel.create({
         data: {
-          title: this.requiredString(body.title, 'title'),
-          description: this.normalizeOptionalString(body.description),
-          enabled: this.booleanOrDefault(body.enabled, true),
+          title: requiredString(body.title, 'title'),
+          description: normalizeOptionalString(body.description),
+          enabled: booleanOrDefault(body.enabled, true),
         },
       });
       const stream = await tx.stream.create({
@@ -184,7 +184,7 @@ export class CatalogService {
   }
 
   async bulkDeletePlaylistOwnedChannels(playlistId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
-    const channelIds = this.uniqueIds(body.channelIds);
+    const channelIds = uniqueIds(body.channelIds);
 
     for (const channelId of channelIds) {
       await this.deletePlaylistOwnedChannel(playlistId, channelId);
@@ -201,7 +201,7 @@ export class CatalogService {
 
   async copyPlaylistOwnedChannel(playlistId: string, channelId: string, body: Record<string, unknown>) {
     await this.ensurePlaylistChannel(playlistId, channelId);
-    const targetPlaylistId = this.requiredString(body.targetPlaylistId || playlistId, 'targetPlaylistId');
+    const targetPlaylistId = requiredString(body.targetPlaylistId || playlistId, 'targetPlaylistId');
     await this.ensureExists(this.prisma.playlist, targetPlaylistId, 'Target playlist not found');
     const source = await this.getChannelForClone(channelId);
 
@@ -210,7 +210,7 @@ export class CatalogService {
 
   async movePlaylistOwnedChannel(playlistId: string, channelId: string, body: Record<string, unknown>) {
     await this.ensurePlaylistChannel(playlistId, channelId);
-    const targetPlaylistId = this.requiredString(body.targetPlaylistId, 'targetPlaylistId');
+    const targetPlaylistId = requiredString(body.targetPlaylistId, 'targetPlaylistId');
     await this.ensureExists(this.prisma.playlist, targetPlaylistId, 'Target playlist not found');
 
     await this.prisma.$transaction(async (tx) => {
@@ -224,15 +224,15 @@ export class CatalogService {
 
   async addPlaylistChannel(playlistId: string, body: CatalogRelationBody) {
     await this.ensureExists(this.prisma.playlist, playlistId, 'Playlist not found');
-    const channelId = this.requiredString(body.channelId, 'channelId');
+    const channelId = requiredString(body.channelId, 'channelId');
     await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
 
     return this.prisma.playlistChannel.create({
       data: {
         playlistId,
         channelId,
-        enabled: this.booleanOrDefault(body.enabled, true),
-        priority: this.numberOrDefault(body.priority, 0),
+        enabled: booleanOrDefault(body.enabled, true),
+        priority: numberOrDefault(body.priority, 0),
       },
       include: { channel: true },
     });
@@ -253,7 +253,7 @@ export class CatalogService {
 
   async bulkAttachPlaylistChannels(playlistId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
     await this.ensureExists(this.prisma.playlist, playlistId, 'Playlist not found');
-    const channelIds = this.uniqueIds(body.channelIds);
+    const channelIds = uniqueIds(body.channelIds);
     const existing = await this.prisma.playlistChannel.findMany({
       where: { playlistId, channelId: { in: channelIds } },
       select: { channelId: true },
@@ -282,7 +282,7 @@ export class CatalogService {
 
   async bulkDetachPlaylistChannels(playlistId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
     await this.ensureExists(this.prisma.playlist, playlistId, 'Playlist not found');
-    const channelIds = this.uniqueIds(body.channelIds);
+    const channelIds = uniqueIds(body.channelIds);
     const deleted = await this.prisma.playlistChannel.deleteMany({
       where: { playlistId, channelId: { in: channelIds } },
     });
@@ -314,18 +314,18 @@ export class CatalogService {
     return this.prisma.$transaction(async (tx) => {
       const stream = await tx.stream.create({
         data: {
-          title: this.normalizeOptionalString(body.title) || 'Stream',
+          title: normalizeOptionalString(body.title) || 'Stream',
           providerId: streamData.providerId,
           streamKey: streamData.streamKey,
           directUrl: streamData.directUrl,
           userAgent: streamData.userAgent,
           enabled: true,
-          priority: this.numberOrDefault(body.priority, 0),
+          priority: numberOrDefault(body.priority, 0),
         },
       });
 
       return tx.channelStream.create({
-        data: { channelId, streamId: stream.id, enabled: true, priority: this.numberOrDefault(body.priority, 0) },
+        data: { channelId, streamId: stream.id, enabled: true, priority: numberOrDefault(body.priority, 0) },
         include: { stream: { include: { provider: true } } },
       });
     });
@@ -342,15 +342,15 @@ export class CatalogService {
 
   async addChannelStream(channelId: string, body: CatalogRelationBody) {
     await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
-    const streamId = this.requiredString(body.streamId, 'streamId');
+    const streamId = requiredString(body.streamId, 'streamId');
     await this.ensureExists(this.prisma.stream, streamId, 'Stream not found');
 
     return this.prisma.channelStream.create({
       data: {
         channelId,
         streamId,
-        enabled: this.booleanOrDefault(body.enabled, true),
-        priority: this.numberOrDefault(body.priority, 0),
+        enabled: booleanOrDefault(body.enabled, true),
+        priority: numberOrDefault(body.priority, 0),
       },
       include: { stream: { include: { provider: true } } },
     });
@@ -371,7 +371,7 @@ export class CatalogService {
 
   async bulkAttachChannelStreams(channelId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
     await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
-    const streamIds = this.uniqueIds(body.streamIds);
+    const streamIds = uniqueIds(body.streamIds);
     const existing = await this.prisma.channelStream.findMany({
       where: { channelId, streamId: { in: streamIds } },
       select: { streamId: true },
@@ -400,7 +400,7 @@ export class CatalogService {
 
   async bulkDetachChannelStreams(channelId: string, body: BulkRelationBody): Promise<BulkOperationStats> {
     await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
-    const streamIds = this.uniqueIds(body.streamIds);
+    const streamIds = uniqueIds(body.streamIds);
     const deleted = await this.prisma.channelStream.deleteMany({
       where: { channelId, streamId: { in: streamIds } },
     });
@@ -414,8 +414,8 @@ export class CatalogService {
   }
 
   async bulkTransformPreview(body: BulkStreamsBody): Promise<StreamTransformPreviewItem[]> {
-    const streamIds = this.uniqueIds(body.streamIds);
-    const providerId = this.requiredString(body.providerId, 'providerId');
+    const streamIds = uniqueIds(body.streamIds);
+    const providerId = requiredString(body.providerId, 'providerId');
     await this.ensureExists(this.prisma.provider, providerId, 'Provider not found');
     const streams = await this.prisma.stream.findMany({
       where: { id: { in: streamIds } },
@@ -460,8 +460,8 @@ export class CatalogService {
   }
 
   async bulkProviderAssign(body: BulkStreamsBody): Promise<BulkOperationStats> {
-    const streamIds = this.uniqueIds(body.streamIds);
-    const providerId = this.requiredString(body.providerId, 'providerId');
+    const streamIds = uniqueIds(body.streamIds);
+    const providerId = requiredString(body.providerId, 'providerId');
     await this.ensureExists(this.prisma.provider, providerId, 'Provider not found');
     const updated = await this.prisma.stream.updateMany({
       where: { id: { in: streamIds } },
@@ -477,7 +477,7 @@ export class CatalogService {
   }
 
   async bulkSetStreamsEnabled(body: BulkStreamsBody, enabled: boolean): Promise<BulkOperationStats> {
-    const streamIds = this.uniqueIds(body.streamIds);
+    const streamIds = uniqueIds(body.streamIds);
     const updated = await this.prisma.stream.updateMany({
       where: { id: { in: streamIds } },
       data: { enabled },
@@ -505,14 +505,14 @@ export class CatalogService {
 
   async addChannelTimezone(channelId: string, body: CatalogRelationBody) {
     await this.ensureExists(this.prisma.channel, channelId, 'Channel not found');
-    const timezonePresetId = this.requiredString(body.timezonePresetId, 'timezonePresetId');
+    const timezonePresetId = requiredString(body.timezonePresetId, 'timezonePresetId');
     await this.ensureExists(this.prisma.timezonePreset, timezonePresetId, 'Timezone preset not found');
 
     return this.prisma.channelTimezone.create({
       data: {
         channelId,
         timezonePresetId,
-        priority: this.numberOrDefault(body.priority, 0),
+        priority: numberOrDefault(body.priority, 0),
       },
       include: { timezonePreset: true },
     });
@@ -521,7 +521,7 @@ export class CatalogService {
   async updateChannelTimezone(_channelId: string, relationId: string, body: CatalogRelationBody) {
     return this.prisma.channelTimezone.update({
       where: { id: relationId },
-      data: { priority: this.numberOrDefault(body.priority, 0) },
+      data: { priority: numberOrDefault(body.priority, 0) },
       include: { timezonePreset: true },
     });
   }
@@ -545,14 +545,14 @@ export class CatalogService {
 
   async addPlaylistTimezone(playlistId: string, body: CatalogRelationBody) {
     await this.ensureExists(this.prisma.playlist, playlistId, 'Playlist not found');
-    const timezonePresetId = this.requiredString(body.timezonePresetId, 'timezonePresetId');
+    const timezonePresetId = requiredString(body.timezonePresetId, 'timezonePresetId');
     await this.ensureExists(this.prisma.timezonePreset, timezonePresetId, 'Timezone preset not found');
 
     return this.prisma.playlistTimezone.create({
       data: {
         playlistId,
         timezonePresetId,
-        priority: this.numberOrDefault(body.priority, 0),
+        priority: numberOrDefault(body.priority, 0),
       },
       include: { timezonePreset: true },
     });
@@ -561,7 +561,7 @@ export class CatalogService {
   async updatePlaylistTimezone(_playlistId: string, relationId: string, body: CatalogRelationBody) {
     return this.prisma.playlistTimezone.update({
       where: { id: relationId },
-      data: { priority: this.numberOrDefault(body.priority, 0) },
+      data: { priority: numberOrDefault(body.priority, 0) },
       include: { timezonePreset: true },
     });
   }
@@ -569,74 +569,6 @@ export class CatalogService {
   async deletePlaylistTimezone(_playlistId: string, relationId: string) {
     await this.prisma.playlistTimezone.delete({ where: { id: relationId } });
     return { ok: true };
-  }
-
-  private getConfig(entity: CatalogEntity): EntityConfig {
-    const configs: Record<CatalogEntity, EntityConfig> = {
-      providers: {
-        delegate: this.prisma.provider,
-        searchableFields: ['title', 'urlTemplate'],
-        include: { _count: { select: { streams: true } } },
-      },
-      streams: {
-        delegate: this.prisma.stream,
-        searchableFields: ['title', 'streamKey', 'directUrl'],
-        include: { provider: true, _count: { select: { channelStreams: true } } },
-      },
-      channels: {
-        delegate: this.prisma.channel,
-        searchableFields: ['title', 'description'],
-        include: {
-          _count: {
-            select: {
-              playlistChannels: true,
-              channelStreams: true,
-              channelTimezones: true,
-            },
-          },
-        },
-      },
-      playlists: {
-        delegate: this.prisma.playlist,
-        searchableFields: ['title'],
-        include: {
-          _count: {
-            select: {
-              playlistChannels: true,
-              playlistTimezones: true,
-            },
-          },
-        },
-      },
-      timezones: {
-        delegate: this.prisma.timezonePreset,
-        searchableFields: ['timezone', 'label'],
-        include: {
-          _count: {
-            select: {
-              channelTimezones: true,
-              playlistTimezones: true,
-            },
-          },
-        },
-      },
-      'telegram-chats': {
-        delegate: this.prisma.telegramChat,
-        searchableFields: ['title', 'chatId'],
-      },
-      'caption-templates': {
-        delegate: this.prisma.captionTemplate,
-        searchableFields: ['title', 'template'],
-      },
-    };
-
-    const config = configs[entity];
-
-    if (!config) {
-      throw new BadRequestException('Unknown catalog entity');
-    }
-
-    return config;
   }
 
   private normalizeEntityData(
@@ -661,14 +593,14 @@ export class CatalogService {
         ['title', 'providerId', 'streamKey', 'directUrl', 'userAgent', 'enabled', 'priority'],
         partial,
       );
-      const providerId = this.normalizeOptionalString(data.providerId);
-      const streamKey = this.normalizeOptionalString(data.streamKey);
-      const directUrl = this.normalizeOptionalString(data.directUrl);
+      const providerId = normalizeOptionalString(data.providerId);
+      const streamKey = normalizeOptionalString(data.streamKey);
+      const directUrl = normalizeOptionalString(data.directUrl);
 
       data.providerId = providerId;
       data.streamKey = streamKey;
       data.directUrl = directUrl;
-      data.userAgent = this.normalizeOptionalString(data.userAgent);
+      data.userAgent = normalizeOptionalString(data.userAgent);
 
       if (!partial || 'providerId' in data || 'streamKey' in data || 'directUrl' in data) {
         if (providerId && !streamKey) {
@@ -689,8 +621,8 @@ export class CatalogService {
         ['title', 'description', 'enabled', 'defaultDelaySeconds', 'defaultScale'],
         partial,
       );
-      data.description = this.normalizeOptionalString(data.description);
-      data.defaultScale = this.normalizeOptionalString(data.defaultScale);
+      data.description = normalizeOptionalString(data.description);
+      data.defaultScale = normalizeOptionalString(data.defaultScale);
       return data;
     }
 
@@ -733,7 +665,7 @@ export class CatalogService {
     }
 
     if (['priority', 'defaultDelaySeconds'].includes(field)) {
-      return this.numberOrNull(value);
+      return numberOrNull(value);
     }
 
     if (typeof value === 'string') {
@@ -763,74 +695,26 @@ export class CatalogService {
     return where;
   }
 
-  private parseLimit(value?: string): number {
-    const limit = Number(value);
-    return Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 50;
-  }
-
-  private parseOffset(value?: string): number {
-    const offset = Number(value);
-    return Number.isFinite(offset) && offset > 0 ? offset : 0;
-  }
-
   private hasPriority(entity: CatalogEntity): boolean {
     return ['streams', 'playlists', 'timezones'].includes(entity);
   }
 
-  private requiredString(value: unknown, field: string): string {
-    if (typeof value !== 'string' || value.trim().length === 0) {
-      throw new BadRequestException(`${field} is required`);
-    }
-
-    return value.trim();
-  }
-
-  private normalizeOptionalString(value: unknown): string | null {
-    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-  }
-
-  private numberOrDefault(value: unknown, fallback: number): number {
-    const normalized = this.numberOrNull(value);
-    return normalized === null ? fallback : normalized;
-  }
-
-  private numberOrNull(value: unknown): number | null {
-    if (value === null || value === undefined || value === '') {
-      return null;
-    }
-
-    const numberValue = Number(value);
-    return Number.isFinite(numberValue) ? numberValue : null;
-  }
-
-  private booleanOrDefault(value: unknown, fallback: boolean): boolean {
-    return typeof value === 'boolean' ? value : fallback;
-  }
-
   private normalizeOwnedStreamData(body: Record<string, unknown>) {
     const streamType = typeof body.streamType === 'string' ? body.streamType : 'direct';
-    const userAgent = this.normalizeOptionalString(body.userAgent);
+    const userAgent = normalizeOptionalString(body.userAgent);
 
     if (streamType === 'provider') {
-      const providerId = this.requiredString(body.providerId, 'providerId');
-      const streamKey = this.requiredString(body.streamKey, 'streamKey');
+      const providerId = requiredString(body.providerId, 'providerId');
+      const streamKey = requiredString(body.streamKey, 'streamKey');
       return { providerId, streamKey, directUrl: null, userAgent };
     }
 
     return {
       providerId: null,
       streamKey: null,
-      directUrl: this.requiredString(body.directUrl, 'directUrl'),
+      directUrl: requiredString(body.directUrl, 'directUrl'),
       userAgent,
     };
-  }
-
-  private uniqueOptionalIds(ids: unknown): string[] {
-    if (!Array.isArray(ids)) {
-      return [];
-    }
-
-    return Array.from(new Set(ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)));
   }
 
   private async ensurePlaylistChannel(playlistId: string, channelId: string): Promise<void> {
@@ -950,24 +834,14 @@ export class CatalogService {
     const data: Record<string, unknown> = {};
 
     if ('enabled' in body) {
-      data.enabled = this.booleanOrDefault(body.enabled, true);
+      data.enabled = booleanOrDefault(body.enabled, true);
     }
 
     if ('priority' in body) {
-      data.priority = this.numberOrDefault(body.priority, 0);
+      data.priority = numberOrDefault(body.priority, 0);
     }
 
     return data;
-  }
-
-  private uniqueIds(ids: unknown): string[] {
-    if (!Array.isArray(ids)) {
-      throw new BadRequestException('ids array is required');
-    }
-
-    return Array.from(
-      new Set(ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)),
-    );
   }
 
   private createTransformPreviewItem(

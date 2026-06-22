@@ -6,7 +6,7 @@
           <p class="eyebrow">Channel</p>
           <h2>{{ channel?.title || 'Channel' }}</h2>
         </div>
-        <RouterLink class="ghost-button control-button" to="/catalog">Назад</RouterLink>
+        <RouterLink class="ghost-button control-button" to="/channels">Назад к поиску</RouterLink>
       </div>
 
       <div class="editor-tabs">
@@ -69,7 +69,7 @@
               <th>Источник</th>
               <th>User-Agent</th>
               <th>Priority</th>
-              <th>Enabled</th>
+              <th>Статус</th>
               <th></th>
             </tr>
           </thead>

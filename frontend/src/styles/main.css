@@ -703,6 +703,20 @@ button {
   font: inherit;
 }
 
+.catalog-form input[type="checkbox"],
+.catalog-form input[type="radio"],
+.runtime-table input[type="checkbox"],
+.bulk-list input[type="checkbox"],
+.bulk-list input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0;
+  padding: 0;
+}
+
 .catalog-form textarea {
   min-height: 96px;
   padding: 10px 12px;
@@ -724,7 +738,9 @@ button {
 
 .toggle-line input {
   width: 18px;
+  height: 18px;
   min-height: 18px;
+  margin: 0;
 }
 
 .runtime-table tr.selected td {
@@ -862,12 +878,17 @@ button {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 10px;
-  align-items: start;
-  min-height: 62px;
-  padding: 12px;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.compact-bulk-list {
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .bulk-option strong,
