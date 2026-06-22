@@ -545,7 +545,7 @@ function serializeForm() {
     const value = form[field.name];
 
     if (field.type === 'number') {
-      payload[field.name] = value === '' ? null : Number(value);
+      payload[field.name] = value === '' ? 0 : Number(value);
     } else if (field.type === 'checkbox') {
       payload[field.name] = Boolean(value);
     } else {

@@ -664,7 +664,11 @@ export class CatalogService {
       return typeof value === 'boolean' ? value : value === 'true';
     }
 
-    if (['priority', 'defaultDelaySeconds'].includes(field)) {
+    if (field === 'priority') {
+      return numberOrDefault(value, 0);
+    }
+
+    if (field === 'defaultDelaySeconds') {
       return numberOrNull(value);
     }
 
