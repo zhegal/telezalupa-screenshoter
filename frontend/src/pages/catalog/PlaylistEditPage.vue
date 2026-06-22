@@ -795,6 +795,7 @@ async function sendScreenshotNow() {
       screenshotError.value = result.errorMessage || 'Не удалось отправить скриншот';
       return;
     }
+    screenshotSending.value = false;
     closeScreenshotModal();
     showScreenshotNotice(result.messageId ? `Скриншот отправлен, message_id=${result.messageId}` : 'Скриншот отправлен');
   } catch (err) {
