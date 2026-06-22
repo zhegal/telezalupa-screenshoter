@@ -36,11 +36,21 @@ const iconMap: Record<
   activity: {
     paths: ['M22 12h-4l-3 9L9 3l-3 9H2'],
   },
+  camera: {
+    paths: ['M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3z'],
+    circle: { cx: 12, cy: 13, r: 3 },
+  },
+  copy: {
+    paths: ['M8 8h10a2 2 0 0 1 2 2v10H10a2 2 0 0 1-2-2z', 'M4 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1'],
+  },
   dashboard: {
     paths: ['M3 13h8V3H3z', 'M13 21h8V11h-8z', 'M13 3v6h8V3z', 'M3 21h8v-6H3z'],
   },
   database: {
     paths: ['M4 6c0-2 4-4 8-4s8 2 8 4-4 4-8 4-8-2-8-4Z', 'M4 6v6c0 2 4 4 8 4s8-2 8-4V6', 'M4 12v6c0 2 4 4 8 4s8-2 8-4v-6'],
+  },
+  edit: {
+    paths: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z'],
   },
   'file-list': {
     paths: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6'],
@@ -52,6 +62,9 @@ const iconMap: Record<
   },
   logs: {
     paths: ['M4 6h16', 'M4 12h16', 'M4 18h10'],
+  },
+  move: {
+    paths: ['M12 2v20', 'M2 12h20', 'M17 7l5 5-5 5', 'M7 7l-5 5 5 5'],
   },
   play: {
     paths: ['M8 5v14l11-7z'],
@@ -68,6 +81,13 @@ const iconMap: Record<
   },
   square: {
     paths: ['M5 5h14v14H5z'],
+  },
+  trash: {
+    paths: ['M3 6h18', 'M8 6V4h8v2', 'M6 6l1 16h10l1-16'],
+    lines: [
+      [10, 11, 10, 17],
+      [14, 11, 14, 17],
+    ],
   },
   tv: {
     paths: ['M7 21h10', 'M12 17v4', 'M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'],

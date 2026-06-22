@@ -1,12 +1,17 @@
 export type AppIconName =
   | 'activity'
+  | 'camera'
+  | 'copy'
   | 'dashboard'
   | 'database'
+  | 'edit'
   | 'file-list'
   | 'logs'
+  | 'move'
   | 'play'
   | 'radio'
   | 'send'
   | 'settings'
   | 'square'
+  | 'trash'
   | 'tv';

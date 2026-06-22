@@ -205,6 +205,59 @@ export class DatabasePlaylistSelectorService {
     });
   }
 
+  async getPlaylistChannel(playlistId: string, channelId: string): Promise<SelectedChannel | null> {
+    const playlist = await this.prisma.playlist.findFirst({
+      where: { id: playlistId },
+      include: {
+        playlistTimezones: {
+          include: { timezonePreset: true },
+          orderBy: { priority: 'asc' },
+        },
+        playlistChannels: {
+          where: {
+            channelId,
+          },
+          include: {
+            channel: {
+              include: {
+                channelTimezones: {
+                  include: { timezonePreset: true },
+                  orderBy: { priority: 'asc' },
+                },
+                channelStreams: {
+                  include: { stream: { include: { provider: true } } },
+                  orderBy: [{ priority: 'desc' }, { stream: { priority: 'desc' } }],
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const relation = playlist?.playlistChannels[0];
+
+    if (!playlist || !relation) {
+      return null;
+    }
+
+    const channel = this.buildChannel(
+      relation.channel,
+      this.normalizeTimezoneRelations(playlist.playlistTimezones, true),
+      true,
+    );
+
+    if (!channel) {
+      return null;
+    }
+
+    return {
+      playlistUrl: `database:${playlist.id}:${playlist.title}`,
+      channel,
+      currentLeft: 0,
+      total: 1,
+    };
+  }
+
   private async reloadSnapshots(): Promise<void> {
     const playlists = await this.prisma.playlist.findMany({
       where: {
@@ -394,6 +447,7 @@ export class DatabasePlaylistSelectorService {
       }>;
     },
     playlistTimezones: ChannelTimezone[],
+    includeDisabledTimezones = false,
   ): Channel | null {
     const streamCandidates = channel.channelStreams
       .map((relation) => this.buildStreamCandidate(relation.stream))
@@ -403,7 +457,7 @@ export class DatabasePlaylistSelectorService {
       return null;
     }
 
-    const channelTimezones = this.normalizeTimezoneRelations(channel.channelTimezones);
+    const channelTimezones = this.normalizeTimezoneRelations(channel.channelTimezones, includeDisabledTimezones);
     const timezones =
       channelTimezones.length > 0
         ? channelTimezones
@@ -496,9 +550,10 @@ export class DatabasePlaylistSelectorService {
 
   private normalizeTimezoneRelations(
     relations: Array<{ timezonePreset: { enabled: boolean; timezone: string; label: string }; priority: number }>,
+    includeDisabled = false,
   ): ChannelTimezone[] {
     return relations
-      .filter((relation) => relation.timezonePreset.enabled)
+      .filter((relation) => includeDisabled || relation.timezonePreset.enabled)
       .map((relation) => [relation.timezonePreset.timezone, relation.timezonePreset.label]);
   }
 

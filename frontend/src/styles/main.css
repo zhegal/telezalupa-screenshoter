@@ -392,6 +392,15 @@ button {
   text-decoration: underline;
 }
 
+.table-link-button {
+  padding: 0;
+  border: 0;
+  color: #dcebe7;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
 .sections-block {
   margin-top: 28px;
 }
@@ -650,6 +659,13 @@ button {
   padding-bottom: 4px;
 }
 
+.modal-subtitle {
+  margin: 0;
+  color: #a8bbb5;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .catalog-form label,
 .relation-form {
   display: grid;
@@ -675,6 +691,31 @@ button {
   color: #d6e7e2;
   font-size: 13px;
   line-height: 1.2;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.form-grid.two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nested-form-block {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .form-section-description {
@@ -773,15 +814,28 @@ button {
   border-radius: 0;
 }
 
-.row-actions__inner--grouped .control-button:first-child {
+.row-actions__inner--grouped .icon-button {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 0;
+}
+
+.icon-button .app-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.row-actions__inner--grouped .ghost-button:first-child {
   border-radius: 8px 0 0 8px;
 }
 
-.row-actions__inner--grouped .control-button:last-child {
+.row-actions__inner--grouped .ghost-button:last-child {
   border-radius: 0 8px 8px 0;
 }
 
-.row-actions__inner--grouped .control-button+.control-button {
+.row-actions__inner--grouped .ghost-button+.ghost-button {
   margin-left: -1px;
 }
 
@@ -865,6 +919,22 @@ button {
   margin: 14px 0 0;
   color: #b8f8df;
   line-height: 1.45;
+}
+
+.toast-popup {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 80;
+  max-width: min(360px, calc(100vw - 48px));
+  padding: 12px 14px;
+  border: 1px solid rgba(75, 215, 167, 0.35);
+  border-radius: 8px;
+  color: #d9fff2;
+  background: rgba(15, 25, 31, 0.96);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .bulk-list {

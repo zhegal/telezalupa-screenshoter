@@ -37,6 +37,7 @@ Implemented:
 - ffmpeg frame capture with watchdog/user-agent support.
 - Telegram photo sending with HTML captions.
 - Runtime dashboard, worker status, logs, playlist view, and channel search.
+- Manual “send screenshot now” action for a playlist channel without changing the worker queue.
 - JSON Import Wizard with preview/apply flow.
 - Docker local and production compose files.
 
@@ -255,7 +256,8 @@ In Database mode:
 3. Open admin.
 4. Use `/channels` to search by visible Telegram channel title, or open `/playlists`.
 5. Edit the channel or playlist.
-6. Worker continues running in the same Node process.
+6. Optionally send a screenshot for that channel immediately from the playlist channel list.
+7. Worker continues running in the same Node process and its queue is not changed by the manual send.
 
 ### Playlist Management
 
@@ -271,6 +273,7 @@ Database source behavior:
 - creates a new playlist;
 - opens playlist edit page;
 - deletes playlist with owned channels and streams.
+- sends a channel screenshot immediately from the playlist channel list without changing worker queue state.
 
 Playlist edit route:
 
@@ -488,6 +491,7 @@ DELETE /api/catalog/playlists/:id/channels/:channelId/owned
 POST   /api/catalog/playlists/:id/channels/bulk-delete-owned
 POST   /api/catalog/playlists/:id/channels/:channelId/copy
 POST   /api/catalog/playlists/:id/channels/:channelId/move
+POST   /api/catalog/playlists/:id/channels/:channelId/send-now
 POST   /api/catalog/channels/:id/streams/owned
 DELETE /api/catalog/channels/:id/streams/:streamId/owned
 ```

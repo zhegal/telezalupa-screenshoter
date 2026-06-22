@@ -224,6 +224,14 @@ export interface BulkOperationStats {
   failed: number;
 }
 
+export interface ManualScreenshotResult {
+  ok: boolean;
+  channelTitle?: string;
+  messageId?: number;
+  streamUrl?: string;
+  errorMessage?: string;
+}
+
 export interface StreamTransformPreviewItem {
   streamId: string;
   directUrl: string | null;

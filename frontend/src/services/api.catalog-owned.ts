@@ -1,5 +1,5 @@
 import { apiFetch } from './api-client';
-import type { BulkOperationStats, CatalogItem } from './api.types';
+import type { BulkOperationStats, CatalogItem, ManualScreenshotResult } from './api.types';
 
 export function createPlaylistOwnedChannel(playlistId: string, payload: Record<string, unknown>): Promise<CatalogItem> {
   return apiFetch<CatalogItem>(`/api/catalog/playlists/${playlistId}/channels/owned`, {
@@ -43,6 +43,15 @@ export function movePlaylistOwnedChannel(
   return apiFetch<{ ok: boolean }>(`/api/catalog/playlists/${playlistId}/channels/${channelId}/move`, {
     method: 'POST',
     body: JSON.stringify({ targetPlaylistId }),
+  });
+}
+
+export function sendPlaylistChannelScreenshotNow(
+  playlistId: string,
+  channelId: string,
+): Promise<ManualScreenshotResult> {
+  return apiFetch<ManualScreenshotResult>(`/api/catalog/playlists/${playlistId}/channels/${channelId}/send-now`, {
+    method: 'POST',
   });
 }
 

@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { SessionAuthGuard } from '../common/guards/session-auth.guard.js';
+import { CatalogManualScreenshotService } from './catalog-manual-screenshot.service.js';
 import { CatalogService } from './catalog.service.js';
 import type {
   BulkRelationBody,
@@ -85,7 +86,11 @@ export class CatalogController {
 @Controller('catalog/playlists/:playlistId/channels')
 @UseGuards(SessionAuthGuard)
 export class CatalogPlaylistChannelsController {
-  constructor(@Inject(CatalogService) private readonly catalog: CatalogService) {}
+  constructor(
+    @Inject(CatalogService) private readonly catalog: CatalogService,
+    @Inject(CatalogManualScreenshotService)
+    private readonly manualScreenshots: CatalogManualScreenshotService,
+  ) {}
 
   @Get()
   list(@Param('playlistId') playlistId: string) {
@@ -125,6 +130,11 @@ export class CatalogPlaylistChannelsController {
   @Post(':channelId/move')
   move(@Param('playlistId') playlistId: string, @Param('channelId') channelId: string, @Body() body: Record<string, unknown>) {
     return this.catalog.movePlaylistOwnedChannel(playlistId, channelId, body);
+  }
+
+  @Post(':channelId/send-now')
+  sendNow(@Param('playlistId') playlistId: string, @Param('channelId') channelId: string) {
+    return this.manualScreenshots.sendPlaylistChannelNow(playlistId, channelId);
   }
 
   @Delete(':channelId/owned')
