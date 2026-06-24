@@ -333,9 +333,7 @@ export class DatabasePlaylistSelectorService {
         id: playlist.id,
         title: playlist.title,
         channels,
-        channelQueue: this.snapshots.get(playlist.id)?.channelQueue.filter((channel) =>
-          channels.some((item) => item.title === channel.title && item.url === channel.url),
-        ) ?? [],
+        channelQueue: this.refreshQueuedChannels(this.snapshots.get(playlist.id)?.channelQueue ?? [], channels),
       });
     }
 
@@ -591,5 +589,17 @@ export class DatabasePlaylistSelectorService {
     );
 
     snapshot.channelQueue = shuffleArray(availableChannels);
+  }
+
+  private refreshQueuedChannels(queuedChannels: Channel[], freshChannels: Channel[]): Channel[] {
+    const freshByKey = new Map(freshChannels.map((channel) => [this.channelQueueKey(channel), channel]));
+
+    return queuedChannels
+      .map((channel) => freshByKey.get(this.channelQueueKey(channel)))
+      .filter((channel): channel is Channel => Boolean(channel) && this.channelAvailability.isAvailableNow(channel));
+  }
+
+  private channelQueueKey(channel: Channel): string {
+    return `${channel.title}\n${channel.url}`;
   }
 }
