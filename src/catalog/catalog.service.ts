@@ -129,6 +129,14 @@ export class CatalogService {
         include: {
           channel: {
             include: {
+              channelStreams: {
+                include: {
+                  stream: {
+                    include: { provider: true },
+                  },
+                },
+                orderBy: [{ priority: 'asc' }, { stream: { priority: 'asc' } }],
+              },
               _count: { select: { channelStreams: true, channelTimezones: true } },
             },
           },

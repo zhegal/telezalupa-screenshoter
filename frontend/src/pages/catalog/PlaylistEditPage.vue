@@ -6,7 +6,15 @@
           <p class="eyebrow">Плейлист</p>
           <h2>{{ playlist?.title || 'Playlist' }}</h2>
         </div>
-        <RouterLink class="ghost-button control-button" to="/playlists">Назад к плейлистам</RouterLink>
+        <div class="control-row">
+          <span class="pill" :class="playlistForm.enabled ? 'level-info' : 'level-warn'">
+            {{ playlistForm.enabled ? 'В очереди' : 'Отключён от очереди' }}
+          </span>
+          <button class="ghost-button control-button" type="button" :disabled="loading" @click="togglePlaylistEnabled">
+            {{ playlistForm.enabled ? 'Отключить' : 'Включить' }}
+          </button>
+          <RouterLink class="ghost-button control-button" to="/playlists">Назад к плейлистам</RouterLink>
+        </div>
       </div>
 
       <div class="editor-tabs">
@@ -59,7 +67,8 @@
             {{ selectedChannelIds.size }} выбрано
           </span>
           <span class="bulk-actions-buttons">
-            <button class="ghost-button control-button danger" type="button" @click="deleteSelectedChannels">Удалить</button>
+            <button class="ghost-button control-button" type="button" @click="disableSelectedChannels">Отключить</button>
+            <button class="ghost-button control-button danger" type="button" @click="openDeleteSelectedModal">Удалить</button>
             <button class="ghost-button control-button" type="button" @click="copySelectedChannels">Копировать</button>
           </span>
         </div>
@@ -80,6 +89,7 @@
               </th>
               <th>Название</th>
               <th>Описание</th>
+              <th>Provider</th>
               <th>Потоки</th>
               <th>Таймзоны</th>
               <th>Статус</th>
@@ -97,6 +107,7 @@
                 </button>
               </td>
               <td class="truncate">{{ channelOf(relation).description || '—' }}</td>
+              <td class="details-cell">{{ providerSummary(channelOf(relation)) }}</td>
               <td>{{ countOf(channelOf(relation), 'channelStreams') }}</td>
               <td>{{ countOf(channelOf(relation), 'channelTimezones') }}</td>
               <td>
@@ -120,7 +131,7 @@
               </td>
             </tr>
             <tr v-if="channelRelations.length === 0">
-              <td colspan="7" class="empty-cell">Нет каналов</td>
+              <td colspan="8" class="empty-cell">Нет каналов</td>
             </tr>
           </tbody>
         </table>
@@ -274,6 +285,15 @@
               <template v-else>
                 <label>Provider<select v-model="stream.providerId"><option value="">Выберите Provider</option><option v-for="provider in providers" :key="provider.id" :value="provider.id">{{ displayTitle(provider) }}</option></select></label>
                 <label>Stream Key<input v-model="stream.streamKey" /></label>
+                <label>
+                  Полный URL
+                  <div class="copy-field">
+                    <input :value="resolvedStreamUrl(stream)" readonly />
+                    <button class="ghost-button icon-button" type="button" title="Скопировать URL" aria-label="Скопировать URL" @click="copyText(resolvedStreamUrl(stream))">
+                      <AppIcon name="copy" />
+                    </button>
+                  </div>
+                </label>
               </template>
               <label>User-Agent<input v-model="stream.userAgent" /></label>
             </div>
@@ -292,6 +312,15 @@
               <template v-else>
                 <label>Provider<select v-model="editNewStreamForm.providerId"><option value="">Выберите Provider</option><option v-for="provider in providers" :key="provider.id" :value="provider.id">{{ displayTitle(provider) }}</option></select></label>
                 <label>Stream Key<input v-model="editNewStreamForm.streamKey" /></label>
+                <label>
+                  Полный URL
+                  <div class="copy-field">
+                    <input :value="resolvedStreamUrl(editNewStreamForm)" readonly />
+                    <button class="ghost-button icon-button" type="button" title="Скопировать URL" aria-label="Скопировать URL" @click="copyText(resolvedStreamUrl(editNewStreamForm))">
+                      <AppIcon name="copy" />
+                    </button>
+                  </div>
+                </label>
               </template>
               <label>User-Agent<input v-model="editNewStreamForm.userAgent" /></label>
             </div>
@@ -347,6 +376,20 @@
         <h2>Копировать канал</h2>
         <label>Плейлист<select v-model="copyTargetPlaylistId"><option value="">Выберите плейлист</option><option :value="playlistId">Текущий плейлист</option><option v-for="item in playlists" :key="item.id" :value="item.id">{{ displayTitle(item) }}</option></select></label>
         <div class="modal-actions"><button class="ghost-button control-button" type="button" @click="copyModalOpen = false">Отмена</button><button class="action-button" type="submit">Копировать</button></div>
+      </form>
+    </div>
+
+    <div v-if="deleteSelectedModalOpen" class="modal-backdrop" role="presentation" @click.self="closeDeleteSelectedModal">
+      <form class="catalog-form catalog-modal small-modal" @submit.prevent="deleteSelectedChannels">
+        <h2>Удалить выбранные каналы</h2>
+        <p class="modal-subtitle">Выбрано: {{ selectedChannelIds.size }}</p>
+        <p v-if="deleteSelectedError" class="form-error">{{ deleteSelectedError }}</p>
+        <div class="modal-actions">
+          <button class="ghost-button control-button" type="button" :disabled="deletingSelected" @click="closeDeleteSelectedModal">Отмена</button>
+          <button class="action-button danger-action" type="submit" :disabled="deletingSelected">
+            {{ deletingSelected ? 'Удаление...' : 'Удалить' }}
+          </button>
+        </div>
       </form>
     </div>
 
@@ -433,9 +476,11 @@ const moveModalOpen = ref(false);
 const copyModalOpen = ref(false);
 const screenshotModalOpen = ref(false);
 const editChannelModalOpen = ref(false);
+const deleteSelectedModalOpen = ref(false);
 const editChannelSaving = ref(false);
 const editNewStreamOpen = ref(false);
 const screenshotSending = ref(false);
+const deletingSelected = ref(false);
 const movingChannelId = ref('');
 const moveTargetPlaylistId = ref('');
 const copyingChannelIds = ref<string[]>([]);
@@ -446,6 +491,7 @@ const screenshotError = ref('');
 const screenshotNotice = ref('');
 const editChannelId = ref('');
 const editChannelError = ref('');
+const deleteSelectedError = ref('');
 let screenshotNoticeTimer: number | undefined;
 const timezoneId = ref('');
 const timezonePriority = ref('0');
@@ -492,9 +538,13 @@ const totalChannelTimezones = computed(() =>
   channelRelations.value.reduce((total, relation) => total + countOf(channelOf(relation), 'channelTimezones'), 0),
 );
 
-onMounted(() => void loadAll());
+onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeydown);
+  void loadAll();
+});
 onBeforeUnmount(() => {
   if (screenshotNoticeTimer) window.clearTimeout(screenshotNoticeTimer);
+  window.removeEventListener('keydown', handleGlobalKeydown);
 });
 
 async function loadAll() {
@@ -533,12 +583,28 @@ async function loadAll() {
 }
 
 async function savePlaylist() {
-  await updateCatalog('playlists', playlistId, {
-    title: playlistForm.title,
-    priority: Number(playlistForm.priority || 0),
-    enabled: playlistForm.enabled,
-  });
-  await loadAll();
+  await persistPlaylist({ enabled: playlistForm.enabled });
+}
+
+async function togglePlaylistEnabled() {
+  await persistPlaylist({ enabled: !playlistForm.enabled });
+}
+
+async function persistPlaylist(overrides: Partial<typeof playlistForm> = {}) {
+  error.value = '';
+
+  try {
+    const nextEnabled = overrides.enabled ?? playlistForm.enabled;
+    await updateCatalog('playlists', playlistId, {
+      title: overrides.title ?? playlistForm.title,
+      priority: Number((overrides.priority ?? playlistForm.priority) || 0),
+      enabled: nextEnabled,
+    });
+    playlistForm.enabled = nextEnabled;
+    await loadAll();
+  } catch (err) {
+    error.value = getErrorMessage(err);
+  }
 }
 
 function openChannelModal() {
@@ -640,6 +706,7 @@ async function saveEditedChannel() {
     }
 
     await syncEditedTimezones();
+    editChannelSaving.value = false;
     closeEditChannelModal();
     await loadAll();
   } catch (err) {
@@ -708,6 +775,22 @@ function streamPayload(stream: StreamEditForm | typeof editNewStreamForm) {
   };
 }
 
+function resolvedStreamUrl(stream: Pick<StreamEditForm, 'streamType' | 'directUrl' | 'providerId' | 'streamKey'>) {
+  if (stream.streamType !== 'provider') {
+    return stream.directUrl || '';
+  }
+
+  const provider = providers.value.find((item) => item.id === stream.providerId);
+  const template = typeof provider?.urlTemplate === 'string' ? provider.urlTemplate : '';
+
+  return template && stream.streamKey ? template.replaceAll('{streamKey}', stream.streamKey) : '';
+}
+
+async function copyText(value: string) {
+  if (!value || !navigator.clipboard) return;
+  await navigator.clipboard.writeText(value);
+}
+
 function resetNewStreamForm() {
   Object.assign(editNewStreamForm, {
     title: '',
@@ -727,11 +810,56 @@ async function deleteChannel(channelId: string) {
   await loadAll();
 }
 
+function openDeleteSelectedModal() {
+  deleteSelectedError.value = '';
+  deleteSelectedModalOpen.value = true;
+}
+
+function closeDeleteSelectedModal() {
+  if (deletingSelected.value) return;
+  deleteSelectedModalOpen.value = false;
+  deleteSelectedError.value = '';
+}
+
 async function deleteSelectedChannels() {
-  if (!window.confirm(`Удалить выбранные каналы: ${selectedChannelIds.size}?`)) return;
-  await bulkDeletePlaylistOwnedChannels(playlistId, Array.from(selectedChannelIds));
-  selectedChannelIds.clear();
-  await loadAll();
+  if (selectedChannelIds.size === 0) {
+    closeDeleteSelectedModal();
+    return;
+  }
+
+  deletingSelected.value = true;
+  deleteSelectedError.value = '';
+
+  try {
+    await bulkDeletePlaylistOwnedChannels(playlistId, Array.from(selectedChannelIds));
+    selectedChannelIds.clear();
+    deletingSelected.value = false;
+    closeDeleteSelectedModal();
+    await loadAll();
+  } catch (err) {
+    deleteSelectedError.value = getErrorMessage(err);
+  } finally {
+    deletingSelected.value = false;
+  }
+}
+
+async function disableSelectedChannels() {
+  if (selectedChannelIds.size === 0) return;
+  error.value = '';
+
+  try {
+    await Promise.all(
+      Array.from(selectedChannelIds).map((channelId) =>
+        updateCatalog('channels', channelId, {
+          enabled: false,
+        }),
+      ),
+    );
+    selectedChannelIds.clear();
+    await loadAll();
+  } catch (err) {
+    error.value = getErrorMessage(err);
+  }
 }
 
 async function copyChannel(channelId: string) {
@@ -811,6 +939,69 @@ function showScreenshotNotice(message: string) {
   screenshotNoticeTimer = window.setTimeout(() => {
     screenshotNotice.value = '';
   }, 3500);
+}
+
+function handleGlobalKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape') return;
+
+  if (!hasOpenModal()) return;
+
+  event.preventDefault();
+  closeTopModal();
+}
+
+function hasOpenModal() {
+  return Boolean(
+    providerModalOpen.value ||
+      timezoneModalOpen.value ||
+      deleteSelectedModalOpen.value ||
+      screenshotModalOpen.value ||
+      copyModalOpen.value ||
+      moveModalOpen.value ||
+      editChannelModalOpen.value ||
+      channelModalOpen.value,
+  );
+}
+
+function closeTopModal() {
+  if (providerModalOpen.value) {
+    providerModalOpen.value = false;
+    return;
+  }
+
+  if (timezoneModalOpen.value) {
+    timezoneModalOpen.value = false;
+    return;
+  }
+
+  if (deleteSelectedModalOpen.value) {
+    closeDeleteSelectedModal();
+    return;
+  }
+
+  if (screenshotModalOpen.value) {
+    closeScreenshotModal();
+    return;
+  }
+
+  if (copyModalOpen.value) {
+    copyModalOpen.value = false;
+    return;
+  }
+
+  if (moveModalOpen.value) {
+    moveModalOpen.value = false;
+    return;
+  }
+
+  if (editChannelModalOpen.value) {
+    closeEditChannelModal();
+    return;
+  }
+
+  if (channelModalOpen.value) {
+    closeChannelModal();
+  }
 }
 
 async function createProvider() {
@@ -896,6 +1087,19 @@ function timezoneOf(relation: CatalogItem) {
 function countOf(item: CatalogItem, key: string) {
   const count = item._count as Record<string, number> | undefined;
   return count?.[key] ?? 0;
+}
+
+function providerSummary(channel: CatalogItem) {
+  const relations = Array.isArray(channel.channelStreams) ? (channel.channelStreams as CatalogItem[]) : [];
+  const names = relations
+    .map((relation) => {
+      const stream = streamOf(relation);
+      const provider = stream.provider as CatalogItem | undefined;
+      return provider ? displayTitle(provider) : 'Direct URL';
+    })
+    .filter((name, index, items) => items.indexOf(name) === index);
+
+  return names.length > 0 ? names.join(', ') : '—';
 }
 
 function displayTitle(item: CatalogItem) {
