@@ -41,6 +41,8 @@ Implemented:
 - JSON Import Wizard with preview/apply flow.
 - Database foundation for frame deduplication, forbidden references, Telegram publications,
   reactions, comments, and moderation bans.
+- Deterministic `32x18` RGB frame fingerprints and consecutive duplicate filtering for database and
+  legacy JSON channel sources.
 - Docker local and production compose files.
 
 Recently improved:
@@ -69,7 +71,8 @@ Still needs work:
 - Reduce old generic catalog/relation terminology in remaining internal screens.
 - Improve Telegram-specific visibility: last posts, message IDs, failed sends, and quick jump from a posted channel to its catalog entry.
 - Add tests for selector logic, availability logic, caption building, import preview, and database source loading.
-- Connect the content-quality data model to the worker and add the Telegram webhook workflow.
+- Persist Telegram publications and add the inbound webhook workflow.
+- Add forbidden reference management and filtering.
 
 ## Requirements
 
@@ -379,6 +382,15 @@ The database contains persistence for:
 - Telegram publications and their pin state;
 - comments linked to publications;
 - moderation bans with an editable private note.
+
+The worker currently computes a SHA-256 fingerprint from deterministic `32x18` RGB pixels. It skips
+a frame when its fingerprint equals the last successfully published frame for that channel. The
+stored fingerprint changes only after Telegram accepts the publication, so `A -> A` is filtered
+while `A -> B -> A` remains valid. Filtered channels are advanced immediately with a bounded cycle
+to prevent a busy loop when every available channel is unchanged.
+
+Manual “send screenshot now” remains an explicit override: it sends the requested frame and then
+stores that frame as the channel's new comparison baseline.
 
 The default automatic pin threshold is stored in `system_settings` under
 `telegram.pinReactionThreshold` and starts at `7`. The future settings UI must accept values of

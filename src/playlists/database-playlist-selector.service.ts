@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ChannelAvailabilityService } from '../channels/channel-availability.service.js';
-import type { Channel, ChannelStreamCandidate, ChannelTimezone } from '../channels/channel.types.js';
+import { createDatabaseChannelKey } from '../channels/channel-key.js';
+import type {
+  Channel,
+  ChannelStreamCandidate,
+  ChannelTimezone,
+} from '../channels/channel.types.js';
 import { shuffleArray } from '../common/utils/shuffle.js';
 import { PLAYLIST_CONFIG, type PlaylistConfig } from '../config/playlist.config.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -103,11 +108,7 @@ export class DatabasePlaylistSelectorService {
     return playlists.map((playlist) => {
       const snapshot = this.snapshots.get(playlist.id);
       const channels = playlist.playlistChannels.map((relation) =>
-        this.buildRuntimeChannel(
-          relation.channel,
-          this.playlistConfig.defaultTimezones,
-          [],
-        ),
+        this.buildRuntimeChannel(relation.channel, this.playlistConfig.defaultTimezones, []),
       ).length;
       const availableChannelsCount = playlist.playlistChannels.filter((relation) =>
         this.channelAvailability.isAvailableNow(
@@ -155,7 +156,10 @@ export class DatabasePlaylistSelectorService {
                     enabled: true,
                     stream: {
                       enabled: true,
-                      OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
+                      OR: [
+                        { directUrl: { not: null } },
+                        { streamKey: { not: null }, provider: { enabled: true } },
+                      ],
                     },
                   },
                   include: {
@@ -199,7 +203,9 @@ export class DatabasePlaylistSelectorService {
           timezones: channel.timezones,
           available: channel.available,
           streamCandidates: channel.streamCandidates?.length ?? 0,
-          streamCandidateUrls: channel.streamCandidates?.map((stream) => stream.url) ?? [channel.url],
+          streamCandidateUrls: channel.streamCandidates?.map((stream) => stream.url) ?? [
+            channel.url,
+          ],
         };
       });
     });
@@ -272,7 +278,10 @@ export class DatabasePlaylistSelectorService {
                   enabled: true,
                   stream: {
                     enabled: true,
-                    OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
+                    OR: [
+                      { directUrl: { not: null } },
+                      { streamKey: { not: null }, provider: { enabled: true } },
+                    ],
                   },
                 },
               },
@@ -302,7 +311,10 @@ export class DatabasePlaylistSelectorService {
                     enabled: true,
                     stream: {
                       enabled: true,
-                      OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
+                      OR: [
+                        { directUrl: { not: null } },
+                        { streamKey: { not: null }, provider: { enabled: true } },
+                      ],
                     },
                   },
                   include: {
@@ -333,7 +345,10 @@ export class DatabasePlaylistSelectorService {
         id: playlist.id,
         title: playlist.title,
         channels,
-        channelQueue: this.refreshQueuedChannels(this.snapshots.get(playlist.id)?.channelQueue ?? [], channels),
+        channelQueue: this.refreshQueuedChannels(
+          this.snapshots.get(playlist.id)?.channelQueue ?? [],
+          channels,
+        ),
       });
     }
 
@@ -375,7 +390,10 @@ export class DatabasePlaylistSelectorService {
           channel: { enabled: true },
           stream: {
             enabled: true,
-            OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
+            OR: [
+              { directUrl: { not: null } },
+              { streamKey: { not: null }, provider: { enabled: true } },
+            ],
           },
         },
       }),
@@ -392,7 +410,10 @@ export class DatabasePlaylistSelectorService {
                     enabled: true,
                     stream: {
                       enabled: true,
-                      OR: [{ directUrl: { not: null } }, { streamKey: { not: null }, provider: { enabled: true } }],
+                      OR: [
+                        { directUrl: { not: null } },
+                        { streamKey: { not: null }, provider: { enabled: true } },
+                      ],
                     },
                   },
                 },
@@ -403,10 +424,15 @@ export class DatabasePlaylistSelectorService {
       }),
     ]);
     const loadedPlaylists = this.snapshots.size;
-    const loadedChannels = Array.from(this.snapshots.values()).reduce((total, snapshot) => total + snapshot.channels.length, 0);
+    const loadedChannels = Array.from(this.snapshots.values()).reduce(
+      (total, snapshot) => total + snapshot.channels.length,
+      0,
+    );
     const availableChannels = Array.from(this.snapshots.values()).reduce(
       (total, snapshot) =>
-        total + snapshot.channels.filter((channel) => this.channelAvailability.isAvailableNow(channel)).length,
+        total +
+        snapshot.channels.filter((channel) => this.channelAvailability.isAvailableNow(channel))
+          .length,
       0,
     );
 
@@ -428,11 +454,15 @@ export class DatabasePlaylistSelectorService {
 
   private buildChannel(
     channel: {
+      id: string;
       title: string;
       description: string | null;
       defaultDelaySeconds: number | null;
       defaultScale: string | null;
-      channelTimezones: Array<{ timezonePreset: { enabled: boolean; timezone: string; label: string }; priority: number }>;
+      channelTimezones: Array<{
+        timezonePreset: { enabled: boolean; timezone: string; label: string };
+        priority: number;
+      }>;
       channelStreams: Array<{
         stream: {
           id: string;
@@ -455,7 +485,10 @@ export class DatabasePlaylistSelectorService {
       return null;
     }
 
-    const channelTimezones = this.normalizeTimezoneRelations(channel.channelTimezones, includeDisabledTimezones);
+    const channelTimezones = this.normalizeTimezoneRelations(
+      channel.channelTimezones,
+      includeDisabledTimezones,
+    );
     const timezones =
       channelTimezones.length > 0
         ? channelTimezones
@@ -465,6 +498,8 @@ export class DatabasePlaylistSelectorService {
     const firstStream = streamCandidates[0];
 
     return {
+      sourceKey: createDatabaseChannelKey(channel.id),
+      databaseId: channel.id,
       title: channel.title,
       description: channel.description || '',
       url: firstStream.url,
@@ -479,11 +514,15 @@ export class DatabasePlaylistSelectorService {
 
   private buildRuntimeChannel(
     channel: {
+      id: string;
       title: string;
       description: string | null;
       defaultDelaySeconds: number | null;
       defaultScale: string | null;
-      channelTimezones: Array<{ timezonePreset: { enabled: boolean; timezone: string; label: string }; priority: number }>;
+      channelTimezones: Array<{
+        timezonePreset: { enabled: boolean; timezone: string; label: string };
+        priority: number;
+      }>;
     },
     playlistTimezones: ChannelTimezone[],
     streams: Array<{
@@ -508,6 +547,8 @@ export class DatabasePlaylistSelectorService {
     const firstStream = streamCandidates[0];
 
     return {
+      sourceKey: createDatabaseChannelKey(channel.id),
+      databaseId: channel.id,
       title: channel.title,
       description: channel.description || '',
       url: firstStream?.url || '',
@@ -547,7 +588,10 @@ export class DatabasePlaylistSelectorService {
   }
 
   private normalizeTimezoneRelations(
-    relations: Array<{ timezonePreset: { enabled: boolean; timezone: string; label: string }; priority: number }>,
+    relations: Array<{
+      timezonePreset: { enabled: boolean; timezone: string; label: string };
+      priority: number;
+    }>,
     includeDisabled = false,
   ): ChannelTimezone[] {
     return relations
@@ -557,7 +601,9 @@ export class DatabasePlaylistSelectorService {
 
   private getAvailablePlaylistIds(): string[] {
     return Array.from(this.snapshots.values())
-      .filter((snapshot) => snapshot.channels.some((channel) => this.channelAvailability.isAvailableNow(channel)))
+      .filter((snapshot) =>
+        snapshot.channels.some((channel) => this.channelAvailability.isAvailableNow(channel)),
+      )
       .map((snapshot) => snapshot.id);
   }
 
@@ -592,14 +638,19 @@ export class DatabasePlaylistSelectorService {
   }
 
   private refreshQueuedChannels(queuedChannels: Channel[], freshChannels: Channel[]): Channel[] {
-    const freshByKey = new Map(freshChannels.map((channel) => [this.channelQueueKey(channel), channel]));
+    const freshByKey = new Map(
+      freshChannels.map((channel) => [this.channelQueueKey(channel), channel]),
+    );
 
     return queuedChannels
       .map((channel) => freshByKey.get(this.channelQueueKey(channel)))
-      .filter((channel): channel is Channel => Boolean(channel) && this.channelAvailability.isAvailableNow(channel));
+      .filter(
+        (channel): channel is Channel =>
+          Boolean(channel) && this.channelAvailability.isAvailableNow(channel),
+      );
   }
 
   private channelQueueKey(channel: Channel): string {
-    return `${channel.title}\n${channel.url}`;
+    return channel.sourceKey || `${channel.title}\n${channel.url}`;
   }
 }

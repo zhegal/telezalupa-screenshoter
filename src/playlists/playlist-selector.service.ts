@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ChannelAvailabilityService } from '../channels/channel-availability.service.js';
+import { createJsonChannelKey } from '../channels/channel-key.js';
 import { shuffleArray } from '../common/utils/shuffle.js';
 import { PlaylistLoaderService } from './playlist-loader.service.js';
 import { PlaylistStateService } from './playlist-state.service.js';
@@ -110,7 +111,10 @@ export class PlaylistSelectorService {
 
     return {
       playlistUrl,
-      channel,
+      channel: {
+        ...channel,
+        sourceKey: createJsonChannelKey(playlistUrl, channel),
+      },
       currentLeft: state.channelQueue.length,
       total: state.channels.length,
     };

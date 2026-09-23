@@ -6,6 +6,8 @@ export interface ChannelAvailableInterval {
 }
 
 export interface Channel {
+  sourceKey?: string;
+  databaseId?: string;
   title: string;
   url: string;
   description: string;

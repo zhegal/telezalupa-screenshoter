@@ -19,6 +19,7 @@
     "build:frontend": "vue-tsc -p frontend/tsconfig.json --noEmit && vite build --config frontend/vite.config.ts",
     "start": "node dist/main.js",
     "start:prod": "npm run prisma:deploy && node dist/main.js",
+    "test": "tsx --test src/**/*.spec.ts",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\" \"frontend/src/**/*.{ts,vue,css}\" \"*.json\" \"*.md\""
   },
@@ -36,7 +37,8 @@
     "form-data": "^4.0.1",
     "prisma": "^6.19.3",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@primeuix/themes": "^1.2.5",

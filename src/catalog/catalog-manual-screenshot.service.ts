@@ -3,6 +3,8 @@ import { CaptionBuilderService } from '../captions/caption-builder.service.js';
 import { FfmpegCaptureService } from '../capture/ffmpeg-capture.service.js';
 import type { Channel } from '../channels/channel.types.js';
 import { RuntimeLogService } from '../logs/runtime-log.service.js';
+import { FrameFingerprintService } from '../frames/frame-fingerprint.service.js';
+import { FrameStateService } from '../frames/frame-state.service.js';
 import { DatabasePlaylistSelectorService } from '../playlists/database-playlist-selector.service.js';
 import { TelegramService } from '../telegram/telegram.service.js';
 
@@ -23,9 +25,14 @@ export class CatalogManualScreenshotService {
     @Inject(TelegramService) private readonly telegram: TelegramService,
     @Inject(CaptionBuilderService) private readonly captions: CaptionBuilderService,
     @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
+    @Inject(FrameFingerprintService) private readonly frameFingerprint: FrameFingerprintService,
+    @Inject(FrameStateService) private readonly frameState: FrameStateService,
   ) {}
 
-  async sendPlaylistChannelNow(playlistId: string, channelId: string): Promise<ManualScreenshotResult> {
+  async sendPlaylistChannelNow(
+    playlistId: string,
+    channelId: string,
+  ): Promise<ManualScreenshotResult> {
     const selected = await this.databaseSelector.getPlaylistChannel(playlistId, channelId);
 
     if (!selected) {
@@ -44,6 +51,25 @@ export class CatalogManualScreenshotService {
         ok: false,
         channelTitle: selected.channel.title,
         errorMessage: 'Screenshot capture failed',
+      };
+    }
+
+    let frameHash: string;
+
+    try {
+      frameHash = await this.frameFingerprint.createHash(captured.photoBuffer);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      this.logs.add('error', 'worker', 'Manual frame fingerprint failed', {
+        playlistUrl: selected.playlistUrl,
+        channelTitle: selected.channel.title,
+        error: errorMessage,
+      });
+      return {
+        ok: false,
+        channelTitle: selected.channel.title,
+        streamUrl: captured.channel.url,
+        errorMessage: `Frame fingerprint failed: ${errorMessage}`,
       };
     }
 
@@ -68,6 +94,24 @@ export class CatalogManualScreenshotService {
       messageId: sent.messageId,
     });
 
+    const channelKey = selected.channel.sourceKey || `db:${channelId}`;
+
+    try {
+      await this.frameState.recordPublished({
+        channelKey,
+        channelId: selected.channel.databaseId || channelId,
+        frameHash,
+      });
+    } catch (err) {
+      this.logs.add('error', 'worker', 'Manual published frame state save failed', {
+        channelKey,
+        playlistUrl: selected.playlistUrl,
+        channelTitle: selected.channel.title,
+        messageId: sent.messageId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     return {
       ok: true,
       channelTitle: selected.channel.title,
@@ -82,7 +126,14 @@ export class CatalogManualScreenshotService {
   ): Promise<{ channel: Channel; photoBuffer: Buffer } | null> {
     const streamCandidates = channel.streamCandidates?.length
       ? channel.streamCandidates
-      : [{ id: 'default', title: channel.title, url: channel.url, userAgent: channel['user-agent'] }];
+      : [
+          {
+            id: 'default',
+            title: channel.title,
+            url: channel.url,
+            userAgent: channel['user-agent'],
+          },
+        ];
 
     for (const stream of streamCandidates) {
       const streamChannel: Channel = {

@@ -16,6 +16,8 @@ import { SchedulerService } from './scheduler.service.js';
 import { WorkerStateService } from './worker-state.service.js';
 import { RuntimeLogService } from '../logs/runtime-log.service.js';
 import { SourceSettingsService } from '../settings/source-settings.service.js';
+import { FrameFingerprintService } from '../frames/frame-fingerprint.service.js';
+import { FrameStateService } from '../frames/frame-state.service.js';
 import type { Channel } from '../channels/channel.types.js';
 import type { ChannelSource } from '../settings/source-settings.types.js';
 import type { SelectedChannel } from '../playlists/playlist.types.js';
@@ -24,6 +26,13 @@ export interface WorkerRunResult {
   status: 'started' | 'stopped' | 'busy' | 'completed' | 'ignored';
   worker: ReturnType<WorkerStateService['getSnapshot']>;
 }
+
+export type WorkerChannelOutcome =
+  | 'published'
+  | 'filtered_duplicate'
+  | 'capture_failed'
+  | 'telegram_failed'
+  | 'processing_failed';
 
 @Injectable()
 export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -42,6 +51,8 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject(WorkerStateService) private readonly workerState: WorkerStateService,
     @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
     @Inject(SourceSettingsService) private readonly sourceSettings: SourceSettingsService,
+    @Inject(FrameFingerprintService) private readonly frameFingerprint: FrameFingerprintService,
+    @Inject(FrameStateService) private readonly frameState: FrameStateService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -139,21 +150,51 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       return;
     }
 
-    const selected = await this.playlistSelector.selectChannel();
+    await this.runJsonCycleStep();
+  }
 
-    if (!selected) {
-      this.logger.warn('No available channels now');
-      this.logs.add('warn', 'worker', 'No available channels now');
-      this.scheduleNext(this.workerConfig.retryIntervalMs);
+  private async runJsonCycleStep(): Promise<void> {
+    const attemptedChannels = new Set<string>();
+
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const selected = await this.playlistSelector.selectChannel();
+
+      if (!selected) {
+        this.logger.warn('No available channels now');
+        this.logs.add('warn', 'worker', 'No available channels now');
+        this.scheduleNext(
+          attemptedChannels.size > 0
+            ? this.workerConfig.intervalMs
+            : this.workerConfig.retryIntervalMs,
+        );
+        return;
+      }
+
+      const selectedKey = this.getSelectedChannelKey(selected);
+
+      if (attemptedChannels.has(selectedKey)) {
+        this.finishFilteredCycle(attemptedChannels.size);
+        return;
+      }
+
+      attemptedChannels.add(selectedKey);
+      const outcome = await this.processSelectedChannel(selected, 'json');
+
+      if (outcome === 'filtered_duplicate') {
+        continue;
+      }
+
+      this.scheduleAfterOutcome(outcome);
       return;
     }
 
-    await this.processSelectedChannel(selected, sourceStatus.activeChannelSource);
+    this.finishFilteredCycle(attemptedChannels.size);
   }
 
   private async runDatabaseCycleStep(): Promise<void> {
     const maxAttempts = 100;
     const attemptedChannels = new Set<string>();
+    let captureFailures = 0;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const selected = await this.databasePlaylistSelector.selectChannel();
@@ -166,38 +207,47 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
         return;
       }
 
-      const selectedKey = `${selected.playlistUrl}\n${selected.channel.title}\n${selected.channel.url}`;
+      const selectedKey = this.getSelectedChannelKey(selected);
 
       if (attemptedChannels.has(selectedKey)) {
-        this.logger.warn('Database channel attempts exhausted');
-        this.logs.add('warn', 'worker', 'Database channel attempts exhausted');
-        this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
+        this.finishDatabaseAttempts(attemptedChannels.size, captureFailures);
         return;
       }
 
       attemptedChannels.add(selectedKey);
 
-      const success = await this.processSelectedChannel(selected, 'database', { scheduleOnCaptureFailure: false });
+      const outcome = await this.processSelectedChannel(selected, 'database');
 
-      if (success) {
+      if (outcome === 'filtered_duplicate') {
+        continue;
+      }
+
+      if (outcome === 'capture_failed') {
+        captureFailures += 1;
+        continue;
+      }
+
+      this.scheduleAfterOutcome(outcome);
+      if (outcome !== 'published') {
         return;
       }
+
+      return;
     }
 
-    this.logger.warn('Database channel attempts exhausted');
-    this.logs.add('warn', 'worker', 'Database channel attempts exhausted');
-    this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
+    this.finishDatabaseAttempts(attemptedChannels.size, captureFailures);
   }
 
   private async processSelectedChannel(
     selected: SelectedChannel,
     source: ChannelSource,
-    options: { scheduleOnCaptureFailure?: boolean } = {},
-  ): Promise<boolean> {
+  ): Promise<WorkerChannelOutcome> {
     const { channel, playlistUrl, currentLeft, total } = selected;
 
     this.workerState.markSelected(playlistUrl, channel.title);
-    this.logger.log(`Target: ${channel.title} (${total - currentLeft}/${total}) from ${playlistUrl}`);
+    this.logger.log(
+      `Target: ${channel.title} (${total - currentLeft}/${total}) from ${playlistUrl}`,
+    );
     this.logs.add('info', 'worker', 'Selected channel', {
       playlistUrl,
       channelTitle: channel.title,
@@ -215,28 +265,58 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
         channelUrl: channel.url,
       });
 
-      if (options.scheduleOnCaptureFailure !== false) {
-        this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
-      }
-
-      return false;
+      return 'capture_failed';
     }
 
     const { channel: capturedChannel, photoBuffer } = captureResult;
+    const channelKey = this.getSelectedChannelKey(selected);
+    let frameHash: string;
+
+    try {
+      frameHash = await this.frameFingerprint.createHash(photoBuffer);
+
+      if (await this.frameState.isConsecutiveDuplicate(channelKey, frameHash)) {
+        this.logger.log(`Skipped consecutive duplicate: ${channel.title}`);
+        this.logs.add('info', 'worker', 'Skipped consecutive duplicate frame', {
+          channelKey,
+          playlistUrl,
+          channelTitle: channel.title,
+        });
+        return 'filtered_duplicate';
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      this.workerState.markError(
+        `Frame fingerprint failed: ${error}`,
+        playlistUrl,
+        capturedChannel.url,
+      );
+      this.logs.add('error', 'worker', 'Frame fingerprint failed', {
+        channelKey,
+        playlistUrl,
+        channelTitle: channel.title,
+        error,
+      });
+      return 'processing_failed';
+    }
+
     const caption = this.captionBuilder.buildCaption(channel);
 
     const sent = await this.telegram.sendPhoto(photoBuffer, caption);
 
     if (!sent.ok) {
-      this.workerState.markError(sent.errorMessage || 'Telegram send failed', playlistUrl, channel.url);
+      this.workerState.markError(
+        sent.errorMessage || 'Telegram send failed',
+        playlistUrl,
+        channel.url,
+      );
       this.logs.add('error', 'telegram', 'Telegram send failed', {
         playlistUrl,
         channelTitle: channel.title,
         channelUrl: capturedChannel.url,
         error: sent.errorMessage,
       });
-      this.scheduleNext(this.workerConfig.errorRetryIntervalMs);
-      return true;
+      return 'telegram_failed';
     }
 
     this.workerState.markSuccess(playlistUrl, capturedChannel.url, channel.title, sent.messageId);
@@ -246,8 +326,78 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       messageId: sent.messageId,
     });
 
-    this.scheduleNext();
-    return true;
+    try {
+      await this.frameState.recordPublished({
+        channelKey,
+        channelId: channel.databaseId,
+        frameHash,
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      this.workerState.markError(
+        `Published frame state save failed: ${error}`,
+        playlistUrl,
+        capturedChannel.url,
+      );
+      this.logs.add('error', 'worker', 'Published frame state save failed', {
+        channelKey,
+        playlistUrl,
+        channelTitle: channel.title,
+        messageId: sent.messageId,
+        error,
+      });
+    }
+
+    return 'published';
+  }
+
+  private getSelectedChannelKey(selected: SelectedChannel): string {
+    return (
+      selected.channel.sourceKey ||
+      `${selected.playlistUrl}\n${selected.channel.title}\n${selected.channel.url}`
+    );
+  }
+
+  private scheduleAfterOutcome(outcome: WorkerChannelOutcome): void {
+    this.scheduleNext(
+      outcome === 'published'
+        ? this.workerConfig.intervalMs
+        : this.workerConfig.errorRetryIntervalMs,
+    );
+  }
+
+  private finishFilteredCycle(attemptedChannels: number): void {
+    this.logger.log(
+      `All ${attemptedChannels} attempted channels were filtered as consecutive duplicates`,
+    );
+    this.logs.add(
+      'info',
+      'worker',
+      'All attempted channels were filtered as consecutive duplicates',
+      {
+        attemptedChannels,
+      },
+    );
+    this.scheduleNext(this.workerConfig.intervalMs);
+  }
+
+  private finishDatabaseAttempts(attemptedChannels: number, captureFailures: number): void {
+    const onlyFiltered = captureFailures === 0;
+    const message = onlyFiltered
+      ? 'All attempted database channels were filtered as consecutive duplicates'
+      : 'Database channel attempts exhausted';
+
+    if (onlyFiltered) {
+      this.logger.log(message);
+      this.logs.add('info', 'worker', message, { attemptedChannels });
+    } else {
+      this.logger.warn(message);
+      this.logs.add('warn', 'worker', message, { attemptedChannels, captureFailures });
+    }
+
+    this.scheduleNext(
+      onlyFiltered ? this.workerConfig.intervalMs : this.workerConfig.errorRetryIntervalMs,
+    );
   }
 
   private async captureWithFallback(
@@ -258,7 +408,14 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     const streamCandidates =
       source === 'database' && channel.streamCandidates?.length
         ? channel.streamCandidates
-        : [{ id: 'default', title: channel.title, url: channel.url, userAgent: channel['user-agent'] }];
+        : [
+            {
+              id: 'default',
+              title: channel.title,
+              url: channel.url,
+              userAgent: channel['user-agent'],
+            },
+          ];
 
     for (const stream of streamCandidates) {
       const streamChannel: Channel = {

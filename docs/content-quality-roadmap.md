@@ -43,17 +43,18 @@ engagement. Each stage is implemented, documented, verified, and committed separ
 
 This stage intentionally does not change worker or Telegram runtime behavior.
 
-### 2. Deterministic image fingerprints and worker filtering — next
+### 2. Deterministic image fingerprints and worker filtering — complete
 
-- Add one in-process image normalization dependency.
-- Generate SHA-256 from raw `32x18` RGB pixels.
-- Introduce stable channel keys for database and JSON sources.
-- Filter consecutive duplicate frames.
-- Persist the frame hash only after Telegram confirms publication.
-- Use explicit worker outcomes and bounded immediate channel advancement.
-- Add focused tests for `A -> A`, `A -> B -> A`, send failure, and bounded filtering.
+- Added `sharp` for one in-process image normalization pass.
+- SHA-256 is generated from raw `32x18` RGB pixels.
+- Database and JSON sources receive stable channel keys.
+- Consecutive duplicate frames are filtered without changing queue priority.
+- The frame hash is persisted only after Telegram confirms publication.
+- Manual sends intentionally bypass duplicate filtering and become the new comparison baseline.
+- Explicit worker outcomes and bounded immediate channel advancement prevent a busy loop.
+- Focused tests cover `A -> A`, `A -> B -> A`, send failure, and bounded filtering.
 
-### 3. Forbidden reference management
+### 3. Forbidden reference management — next
 
 - Add authenticated CRUD and upload validation.
 - Store compact previews under the managed data volume.
