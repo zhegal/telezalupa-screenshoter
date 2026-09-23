@@ -57,6 +57,7 @@ test('stores the total reaction count but does not pin while automation is disab
       },
     } as never,
     { add: () => undefined } as never,
+    { ingest: async () => false } as never,
   );
 
   await service.process(reactionUpdate(1, [4, 6]));
@@ -124,6 +125,7 @@ test('pins once at the enabled threshold and ignores later reaction changes', as
       },
     } as never,
     { add: () => undefined } as never,
+    { ingest: async () => false } as never,
   );
 
   await service.process(reactionUpdate(1, [3, 4]));
@@ -161,6 +163,7 @@ test('records a manual pin and deletes its Telegram service message', async () =
       },
     } as never,
     { add: () => undefined } as never,
+    { ingest: async () => false } as never,
   );
 
   await service.process({

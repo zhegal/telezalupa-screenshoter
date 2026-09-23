@@ -41,6 +41,7 @@ test('links an automatic discussion forward and ignores repeated delivery', asyn
     } as never,
     {} as never,
     { add: () => undefined } as never,
+    { ingest: async () => false } as never,
   );
   const update: TelegramUpdate = {
     update_id: 100,

@@ -34,6 +34,7 @@ export const messages = {
     sections: {
       worker: 'Worker',
       telegram: 'Telegram',
+      comments: 'Комментарии',
       playlists: 'Плейлисты',
       channels: 'Поиск каналов',
       frameReferences: 'Стоп-кадры',
@@ -45,6 +46,7 @@ export const messages = {
     sectionDescriptions: {
       worker: 'Старт, стоп, рестарт и состояние фонового цикла.',
       telegram: 'Один бот и один Telegram-канал публикаций.',
+      comments: 'Комментарии discussion-группы и блокировка авторов.',
       playlists: 'Главное место управления плейлистами и каналами.',
       channels: 'Быстро найти канал из Telegram-поста и открыть редактирование.',
       frameReferences: 'Запрещённые экраны и технические заглушки.',

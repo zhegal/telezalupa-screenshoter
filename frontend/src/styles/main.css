@@ -642,6 +642,81 @@ button {
   max-width: 520px;
 }
 
+.telegram-comment-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.telegram-comment-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.telegram-comment-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: #9ab1aa;
+  font-size: 13px;
+}
+
+.telegram-comment-header > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.telegram-comment-header strong {
+  color: #eef6f3;
+}
+
+.telegram-comment-publication,
+.telegram-comment-text {
+  margin: 0;
+}
+
+.telegram-comment-publication {
+  color: #8ca39c;
+  font-size: 13px;
+}
+
+.telegram-comment-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+.telegram-comment-text.muted {
+  color: #71867f;
+}
+
+.telegram-comment-note {
+  display: grid;
+  gap: 8px;
+  color: #9ab1aa;
+  font-size: 13px;
+}
+
+.telegram-comment-note textarea {
+  min-height: 72px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #eef6f3;
+  background: rgba(255, 255, 255, 0.055);
+  resize: vertical;
+  font: inherit;
+}
+
+.telegram-comment-actions {
+  align-items: center;
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;

@@ -106,6 +106,14 @@ export class TelegramService {
     });
   }
 
+  async banChatMember(chatId: string, userId: string): Promise<boolean> {
+    return this.callApi<boolean>('banChatMember', {
+      chat_id: chatId,
+      user_id: Number(userId),
+      revoke_messages: true,
+    });
+  }
+
   private async callApi<T>(method: string, body: Record<string, unknown>): Promise<T> {
     if (!this.telegramConfig.botToken) {
       throw new Error('Telegram bot token is not configured');

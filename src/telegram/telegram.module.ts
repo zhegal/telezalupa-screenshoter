@@ -7,6 +7,12 @@ import {
   TelegramWebhookStatusController,
 } from './telegram-webhook.controller.js';
 import { TelegramPublicationService } from './telegram-publication.service.js';
+import { TelegramCommentIngestService } from './telegram-comment-ingest.service.js';
+import {
+  TelegramBansController,
+  TelegramCommentsController,
+} from './telegram-moderation.controller.js';
+import { TelegramModerationService } from './telegram-moderation.service.js';
 import { TelegramSettingsController } from './telegram-settings.controller.js';
 import { TelegramSettingsService } from './telegram-settings.service.js';
 import { TelegramService } from './telegram.service.js';
@@ -19,6 +25,8 @@ import { TelegramWebhookService } from './telegram-webhook.service.js';
     TelegramWebhookController,
     TelegramWebhookStatusController,
     TelegramSettingsController,
+    TelegramCommentsController,
+    TelegramBansController,
   ],
   providers: [
     TelegramService,
@@ -26,6 +34,8 @@ import { TelegramWebhookService } from './telegram-webhook.service.js';
     TelegramUpdateService,
     TelegramWebhookService,
     TelegramSettingsService,
+    TelegramCommentIngestService,
+    TelegramModerationService,
   ],
   exports: [
     TelegramService,

@@ -16,6 +16,7 @@ import SettingsSourcesPage from '../pages/SettingsSourcesPage.vue';
 import WorkerPage from '../pages/WorkerPage.vue';
 import FrameReferencesPage from '../pages/FrameReferencesPage.vue';
 import TelegramPage from '../pages/TelegramPage.vue';
+import TelegramCommentsPage from '../pages/TelegramCommentsPage.vue';
 import { useAuthStore } from '../stores/auth.store';
 
 export const router = createRouter({
@@ -57,6 +58,14 @@ export const router = createRouter({
       path: '/telegram',
       name: 'telegram',
       component: TelegramPage,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/telegram/comments',
+      name: 'telegram-comments',
+      component: TelegramCommentsPage,
       meta: {
         requiresAuth: true,
       },

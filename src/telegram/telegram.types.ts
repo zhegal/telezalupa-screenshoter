@@ -25,6 +25,14 @@ export interface TelegramChatRef {
   username?: string;
 }
 
+export interface TelegramUserRef {
+  id: number;
+  is_bot?: boolean;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+}
+
 export interface TelegramForwardOriginChannel {
   type: 'channel';
   chat: TelegramChatRef;
@@ -36,11 +44,33 @@ export interface TelegramMessageUpdate {
   message_id: number;
   date: number;
   chat: TelegramChatRef;
+  from?: TelegramUserRef;
+  edit_date?: number;
+  message_thread_id?: number;
+  text?: string;
+  caption?: string;
   is_automatic_forward?: boolean;
   forward_origin?: TelegramForwardOriginChannel | { type: string };
   forward_from_message_id?: number;
   sender_chat?: TelegramChatRef;
   pinned_message?: TelegramMessageUpdate;
+  reply_to_message?: TelegramMessageUpdate;
+  photo?: unknown;
+  animation?: unknown;
+  audio?: unknown;
+  contact?: unknown;
+  dice?: unknown;
+  document?: unknown;
+  game?: unknown;
+  location?: unknown;
+  paid_media?: unknown;
+  poll?: unknown;
+  sticker?: unknown;
+  story?: unknown;
+  video?: unknown;
+  video_note?: unknown;
+  venue?: unknown;
+  voice?: unknown;
 }
 
 export interface TelegramReactionCount {

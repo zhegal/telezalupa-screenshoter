@@ -56,6 +56,7 @@ const navItems: { to: string; label: string; icon: AppIconName }[] = [
   { to: '/channels', label: t.sections.channels, icon: 'radio' },
   { to: '/frame-references', label: t.sections.frameReferences, icon: 'camera' },
   { to: '/telegram', label: t.sections.telegram, icon: 'send' },
+  { to: '/telegram/comments', label: t.sections.comments, icon: 'logs' },
   { to: '/catalog/import', label: t.sections.import, icon: 'database' },
   { to: '/settings', label: t.sections.settings, icon: 'settings' },
   { to: '/worker', label: t.sections.worker, icon: 'play' },

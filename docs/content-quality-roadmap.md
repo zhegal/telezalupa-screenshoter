@@ -93,14 +93,22 @@ This stage intentionally does not change worker or Telegram runtime behavior.
 - Focused tests cover disabled-by-default behavior, summed thresholds, single pin execution,
   post-pin reaction changes, manual pin tracking, and settings validation.
 
-### 6. Comment inbox and moderation — next
+### 6. Comment inbox and moderation — complete
 
-- Persist new and edited comments without downloading media.
-- Add a simple newest-first comment view with Telegram links.
-- Add permanent ban confirmation and an editable private note.
-- Preserve the triggering comment and publication after Telegram removes messages.
+- New and edited discussion messages are persisted without downloading media files.
+- Direct comments map through the discussion root; nested replies inherit the publication from an
+  already stored parent comment.
+- Author ID, username and display-name snapshots, text, media presence, timestamps, and direct
+  Telegram links are retained.
+- Added `/telegram/comments`, a simple newest-first paginated inbox with open-comment and ban-user
+  actions.
+- Permanent bans require confirmation, preserve the triggering comment and source publication, and
+  support editable private notes of up to 2000 characters.
+- Sender-chat comments without a user ID remain visible while their ban action is disabled.
+- Focused tests cover new comments, edits, nested replies, media metadata, deep links, successful
+  bans, private notes, and sender-chat restrictions.
 
-### 7. Production rollout
+### 7. Production rollout — next
 
 - Back up PostgreSQL and the managed data volume.
 - Apply migrations and deploy the tested build.

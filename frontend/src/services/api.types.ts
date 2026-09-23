@@ -263,6 +263,54 @@ export interface TelegramAutomationSettings {
   reactionThreshold: number;
 }
 
+export interface TelegramUserBan {
+  id: string;
+  commentId: string;
+  publicationId: string;
+  discussionChatId: string;
+  telegramUserId: string;
+  authorUsername: string | null;
+  authorDisplayName: string;
+  note: string | null;
+  status: 'pending' | 'completed' | 'error';
+  errorMessage: string | null;
+  bannedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TelegramComment {
+  id: string;
+  publicationId: string;
+  discussionChatId: string;
+  messageId: number;
+  telegramUserId: string | null;
+  authorUsername: string | null;
+  authorDisplayName: string;
+  text: string | null;
+  hasMedia: boolean;
+  telegramUrl: string;
+  messageCreatedAt: string;
+  messageEditedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  publication: {
+    id: string;
+    channelTitle: string;
+    chatId: string;
+    messageId: number;
+    publishedAt: string;
+  };
+  ban: TelegramUserBan | null;
+}
+
+export interface TelegramCommentListResponse {
+  items: TelegramComment[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface StreamTransformPreviewItem {
   streamId: string;
   directUrl: string | null;

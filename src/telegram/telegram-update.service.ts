@@ -7,6 +7,7 @@ import {
   TELEGRAM_AUTO_PIN_ENABLED_KEY,
   TELEGRAM_PIN_REACTION_THRESHOLD_KEY,
 } from './telegram-settings.service.js';
+import { TelegramCommentIngestService } from './telegram-comment-ingest.service.js';
 import { TelegramService } from './telegram.service.js';
 import type {
   TelegramMessageReactionCountUpdated,
@@ -44,6 +45,8 @@ export class TelegramUpdateService {
     @Inject(TelegramWebhookService) private readonly webhook: TelegramWebhookService,
     @Inject(TelegramService) private readonly telegram: TelegramService,
     @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
+    @Inject(TelegramCommentIngestService)
+    private readonly comments: TelegramCommentIngestService,
   ) {}
 
   async process(
@@ -100,6 +103,13 @@ export class TelegramUpdateService {
     const pinRequest = update.message_reaction_count
       ? await this.recordReactionCount(tx, update.message_reaction_count)
       : null;
+
+    if (update.message) {
+      await this.comments.ingest(tx, update.message, false);
+    }
+    if (update.edited_message) {
+      await this.comments.ingest(tx, update.edited_message, true);
+    }
 
     return { linkedPublication, pinRequest, serviceMessage };
   }

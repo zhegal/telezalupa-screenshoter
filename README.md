@@ -48,6 +48,8 @@ Implemented:
 - Secret-token-protected Telegram webhook with idempotent update receipts and automatic discussion
   forward mapping.
 - Opt-in reaction-based pinning, manual pin tracking, and pin service-message cleanup.
+- Newest-first Telegram comment inbox with edit synchronization, deep links, permanent user bans,
+  and editable private moderation notes.
 - Docker local and production compose files.
 
 Recently improved:
@@ -76,7 +78,7 @@ Still needs work:
 - Reduce old generic catalog/relation terminology in remaining internal screens.
 - Improve Telegram-specific visibility: last posts, message IDs, failed sends, and quick jump from a posted channel to its catalog entry.
 - Add tests for selector logic, availability logic, caption building, import preview, and database source loading.
-- Add the comment inbox and moderation actions for Telegram discussion updates.
+- Roll out the content-quality and Telegram engagement stages to production.
 
 ## Requirements
 
@@ -421,6 +423,16 @@ unpinning or another automatic pin attempt.
 Manual and automatic pins are recorded with their source. Telegram pin service messages are
 deleted immediately when their webhook update arrives.
 
+Discussion comments are available at `/telegram/comments`, newest first. New and edited messages
+retain the author's ID, username and display name snapshot, text, media-presence flag, and a direct
+Telegram link; media files themselves are never downloaded. Replies to an existing comment inherit
+its source publication. Messages sent as a chat remain readable but cannot be banned without a user
+ID.
+
+Blocking an author requires confirmation and uses a permanent discussion-group ban. The database
+keeps the triggering comment and publication even when Telegram removes messages. A private note
+of up to 2000 characters can be saved with the ban and edited later.
+
 Frame filtering, publication persistence, and inbound Telegram webhook handling are active.
 Successful sends store the Telegram chat/message IDs and the frame baseline in one database
 transaction. Incoming updates are deduplicated by `update_id`; receipt records older than seven
@@ -526,6 +538,9 @@ Telegram management:
 GET   /api/telegram/webhook/status
 GET   /api/telegram/settings
 PATCH /api/telegram/settings
+GET   /api/telegram/comments
+POST  /api/telegram/comments/:id/ban
+PATCH /api/telegram/bans/:id
 ```
 
 Catalog CRUD:
@@ -676,11 +691,13 @@ Recommended next refactor order:
 5. Split `CatalogImportPage.vue` into wizard step components.
 6. Split `catalog-import.service.ts` into source loading, preview building, provider matching, and apply service.
 
-## Tests To Add
+## Tests
 
-No mandatory test layer exists yet.
+Focused automated coverage now includes frame fingerprints and filtering, forbidden references,
+Telegram webhook idempotency, reaction pinning, comment-to-publication mapping, comment edits and
+nested replies, and moderation audit preservation.
 
-High-value tests:
+Remaining high-value tests:
 
 - playlist normalizer;
 - channel availability;
@@ -691,13 +708,6 @@ High-value tests:
 - provider URL template matching;
 - JSON Import Wizard preview/apply;
 - source switching.
-- deterministic `32x18` frame fingerprints;
-- consecutive duplicate filtering;
-- forbidden reference filtering;
-- Telegram webhook idempotency;
-- reaction threshold pinning;
-- comment-to-publication mapping;
-- moderation ban audit preservation.
 
 ## Known Product Decisions
 
@@ -708,8 +718,7 @@ High-value tests:
 - Multi-chat publishing and worker groups are out of scope.
 - Consecutive duplicate and forbidden-reference filtering must not change the channel queue or its
   existing priority behavior.
-- Reaction-triggered pinning and manual pin tracking are active. Comments and moderation remain on
-  the product roadmap.
+- Reaction-triggered pinning, manual pin tracking, comments, and moderation are active.
 - Streams should stay visually subordinate to channels.
 - Timezones and providers are important but secondary to playlist/channel maintenance.
 
