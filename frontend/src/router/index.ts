@@ -15,6 +15,7 @@ import SetupPage from '../pages/SetupPage.vue';
 import SettingsSourcesPage from '../pages/SettingsSourcesPage.vue';
 import WorkerPage from '../pages/WorkerPage.vue';
 import FrameReferencesPage from '../pages/FrameReferencesPage.vue';
+import TelegramPage from '../pages/TelegramPage.vue';
 import { useAuthStore } from '../stores/auth.store';
 
 export const router = createRouter({
@@ -55,7 +56,7 @@ export const router = createRouter({
     {
       path: '/telegram',
       name: 'telegram',
-      component: DashboardPage,
+      component: TelegramPage,
       meta: {
         requiresAuth: true,
       },

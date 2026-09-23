@@ -44,6 +44,9 @@ Implemented:
 - Deterministic `32x18` RGB frame fingerprints and consecutive duplicate filtering for database and
   legacy JSON channel sources.
 - Forbidden frame reference upload, exact-match filtering, compact previews, and admin management.
+- Transactional persistence of successful Telegram publications and their frame baselines.
+- Secret-token-protected Telegram webhook with idempotent update receipts and automatic discussion
+  forward mapping.
 - Docker local and production compose files.
 
 Recently improved:
@@ -72,7 +75,7 @@ Still needs work:
 - Reduce old generic catalog/relation terminology in remaining internal screens.
 - Improve Telegram-specific visibility: last posts, message IDs, failed sends, and quick jump from a posted channel to its catalog entry.
 - Add tests for selector logic, availability logic, caption building, import preview, and database source loading.
-- Persist Telegram publications and process inbound Telegram updates.
+- Process reactions, pin lifecycle, comments, and moderation actions from Telegram updates.
 
 ## Requirements
 
@@ -89,6 +92,8 @@ Copy `.env.example` to `.env`:
 ```env
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_DEFAULT_CHAT_ID=
+TELEGRAM_WEBHOOK_URL=
+TELEGRAM_WEBHOOK_SECRET=
 TEMP_ADMIN_PASSWORD=
 PORT=3000
 
@@ -100,7 +105,12 @@ DATABASE_URL=postgresql://tv_screenshoter:change_me@localhost:5432/tv_screenshot
 
 Important:
 
-- `TELEGRAM_BOT_TOKEN` and `TELEGRAM_DEFAULT_CHAT_ID` are required for real posting.
+- `TELEGRAM_BOT_TOKEN` and `TELEGRAM_DEFAULT_CHAT_ID` are required for real posting. The default
+  chat is the publication channel; there is no separate channel address setting.
+- `TELEGRAM_WEBHOOK_URL` is the public HTTPS endpoint ending in `/api/telegram/webhook`.
+- `TELEGRAM_WEBHOOK_SECRET` is a private value made from letters, digits, `_`, or `-` (up to 256
+  characters). When both webhook values are present, the application verifies and configures the
+  webhook during startup.
 - `TEMP_ADMIN_PASSWORD` is required only until the first real admin user is created.
 - `data/playlists.json` is still supported as the legacy JSON source.
 - Secrets must stay in `.env`, not in source files.
@@ -370,10 +380,12 @@ Channel timezones have priority over playlist timezones. Playlist timezones are 
 Current production assumption:
 
 - one bot;
-- one default Telegram channel;
+- one destination selected by `TELEGRAM_DEFAULT_CHAT_ID`; that destination is the publication
+  channel;
 - screenshots are posted there continuously.
 
-The product targets one public channel: `@telezalupa_monitor`, with one linked discussion group.
+No second channel address or username is configured. Telegram supplies the linked discussion group
+identity through automatic-forward updates.
 
 The database contains persistence for:
 
@@ -403,8 +415,11 @@ The default automatic pin threshold is stored in `system_settings` under
 `telegram.pinReactionThreshold` and starts at `7`. The future settings UI must accept values of
 `1` or greater.
 
-Frame filtering is active. Publication persistence and inbound Telegram webhook handling are the
-next implementation stage. Progress is tracked in
+Frame filtering, publication persistence, and inbound Telegram webhook handling are active.
+Successful sends store the Telegram chat/message IDs and the frame baseline in one database
+transaction. Incoming updates are deduplicated by `update_id`; receipt records older than seven
+days are periodically removed. Automatic discussion forwards populate the discussion chat and root
+message IDs for the source publication. Webhook state is visible at `/telegram`. Progress is tracked in
 [`docs/content-quality-roadmap.md`](docs/content-quality-roadmap.md).
 
 ## JSON Import Wizard
@@ -674,7 +689,8 @@ High-value tests:
 
 - Database source is now the primary direction.
 - JSON source stays as compatibility and fallback.
-- One Telegram bot, `@telezalupa_monitor`, and its discussion group are enough for now.
+- One configured Telegram bot and `TELEGRAM_DEFAULT_CHAT_ID` are enough for publishing. The linked
+  discussion group is discovered from Telegram updates.
 - Multi-chat publishing and worker groups are out of scope.
 - Consecutive duplicate and forbidden-reference filtering must not change the channel queue or its
   existing priority behavior.

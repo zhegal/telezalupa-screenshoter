@@ -9,7 +9,12 @@
             <p class="eyebrow">GET /api/system/status</p>
             <h2>Runtime</h2>
           </div>
-          <button class="ghost-button control-button" type="button" :disabled="loading" @click="refresh">
+          <button
+            class="ghost-button control-button"
+            type="button"
+            :disabled="loading"
+            @click="refresh"
+          >
             Обновить
           </button>
         </div>
@@ -147,6 +152,12 @@ const sections: { to: string; title: string; description: string; icon: AppIconN
     title: t.sections.channels,
     description: t.sectionDescriptions.channels,
     icon: 'radio',
+  },
+  {
+    to: '/telegram',
+    title: t.sections.telegram,
+    description: t.sectionDescriptions.telegram,
+    icon: 'send',
   },
   {
     to: '/catalog/import',

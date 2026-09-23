@@ -16,6 +16,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-tv_screenshoter}:${POSTGRES_PASSWORD:-tv_screenshoter_password}@postgres:5432/${POSTGRES_DB:-tv_screenshoter}?schema=public
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_DEFAULT_CHAT_ID: ${TELEGRAM_DEFAULT_CHAT_ID:-}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       TEMP_ADMIN_PASSWORD: ${TEMP_ADMIN_PASSWORD:-}
     expose:
       - "3000"

@@ -338,6 +338,14 @@ model TelegramUserBan {
   @@map("telegram_user_bans")
 }
 
+model TelegramUpdateReceipt {
+  updateId  Int      @id
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("telegram_update_receipts")
+}
+
 model CaptionTemplate {
   id        String   @id @default(cuid())
   title     String

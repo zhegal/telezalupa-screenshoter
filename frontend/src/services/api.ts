@@ -10,3 +10,4 @@ export * from './api.catalog-owned';
 export * from './api.catalog-bulk';
 export * from './api.catalog-import';
 export * from './api.frame-references';
+export * from './api.telegram';

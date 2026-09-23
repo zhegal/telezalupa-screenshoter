@@ -29,7 +29,7 @@ export class FrameStateService {
 
   async recordPublished(state: PublishedFrameState): Promise<void> {
     const publishedAt = state.publishedAt ?? new Date();
-    this.lastPublishedHashes.set(state.channelKey, state.frameHash);
+    this.rememberPublished(state.channelKey, state.frameHash);
 
     await this.prisma.channelFrameState.upsert({
       where: { channelKey: state.channelKey },
@@ -45,5 +45,9 @@ export class FrameStateService {
         lastPublishedAt: publishedAt,
       },
     });
+  }
+
+  rememberPublished(channelKey: string, frameHash: string): void {
+    this.lastPublishedHashes.set(channelKey, frameHash);
   }
 }

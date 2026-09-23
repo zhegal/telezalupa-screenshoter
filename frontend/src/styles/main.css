@@ -634,6 +634,10 @@ button {
   min-width: 0;
 }
 
+.telegram-webhook-grid dd {
+  overflow-wrap: anywhere;
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;

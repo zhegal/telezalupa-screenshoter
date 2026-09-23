@@ -88,7 +88,7 @@ function createWorkerHarness(
     sendPhoto: async () => {
       sendCount += 1;
       return telegramSucceeds
-        ? { ok: true, messageId: sendCount }
+        ? { ok: true, messageId: sendCount, chatId: '-1001' }
         : { ok: false, errorMessage: 'send failed' };
     },
   };
@@ -114,6 +114,10 @@ function createWorkerHarness(
     new FrameFingerprintService(),
     frameState,
     { isForbidden } as never,
+    {
+      record: async (input: { channelKey: string; channelId?: string; frameHash: string }) =>
+        frameState.recordPublished(input),
+    } as never,
   );
   const processSelected = (
     worker as unknown as {
@@ -206,7 +210,7 @@ test('stops immediate duplicate advancement after the channel queue repeats', as
     {
       sendPhoto: async () => {
         sendCount += 1;
-        return { ok: true, messageId: sendCount };
+        return { ok: true, messageId: sendCount, chatId: '-1001' };
       },
     } as never,
     { buildCaption: () => 'caption' } as never,
@@ -228,6 +232,10 @@ test('stops immediate duplicate advancement after the channel queue repeats', as
     fingerprint,
     frameState,
     { isForbidden: () => false } as never,
+    {
+      record: async (input: { channelKey: string; channelId?: string; frameHash: string }) =>
+        frameState.recordPublished(input),
+    } as never,
   );
 
   await (worker as unknown as { runDatabaseCycleStep(): Promise<void> }).runDatabaseCycleStep();

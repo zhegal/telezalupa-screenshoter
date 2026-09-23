@@ -4,10 +4,10 @@ import { FfmpegCaptureService } from '../capture/ffmpeg-capture.service.js';
 import type { Channel } from '../channels/channel.types.js';
 import { RuntimeLogService } from '../logs/runtime-log.service.js';
 import { FrameFingerprintService } from '../frames/frame-fingerprint.service.js';
-import { FrameStateService } from '../frames/frame-state.service.js';
 import { ForbiddenFrameReferenceService } from '../frames/forbidden-frame-reference.service.js';
 import { DatabasePlaylistSelectorService } from '../playlists/database-playlist-selector.service.js';
 import { TelegramService } from '../telegram/telegram.service.js';
+import { TelegramPublicationService } from '../telegram/telegram-publication.service.js';
 
 export interface ManualScreenshotResult {
   ok: boolean;
@@ -27,9 +27,10 @@ export class CatalogManualScreenshotService {
     @Inject(CaptionBuilderService) private readonly captions: CaptionBuilderService,
     @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
     @Inject(FrameFingerprintService) private readonly frameFingerprint: FrameFingerprintService,
-    @Inject(FrameStateService) private readonly frameState: FrameStateService,
     @Inject(ForbiddenFrameReferenceService)
     private readonly forbiddenFrames: ForbiddenFrameReferenceService,
+    @Inject(TelegramPublicationService)
+    private readonly publications: TelegramPublicationService,
   ) {}
 
   async sendPlaylistChannelNow(
@@ -112,20 +113,35 @@ export class CatalogManualScreenshotService {
 
     const channelKey = selected.channel.sourceKey || `db:${channelId}`;
 
-    try {
-      await this.frameState.recordPublished({
-        channelKey,
-        channelId: selected.channel.databaseId || channelId,
-        frameHash,
-      });
-    } catch (err) {
-      this.logs.add('error', 'worker', 'Manual published frame state save failed', {
-        channelKey,
-        playlistUrl: selected.playlistUrl,
-        channelTitle: selected.channel.title,
-        messageId: sent.messageId,
-        error: err instanceof Error ? err.message : String(err),
-      });
+    if (sent.chatId && sent.messageId !== undefined) {
+      try {
+        await this.publications.record({
+          channelKey,
+          channelId: selected.channel.databaseId || channelId,
+          channelTitle: selected.channel.title,
+          chatId: sent.chatId,
+          messageId: sent.messageId,
+          frameHash,
+          publishedAt: sent.publishedAt,
+        });
+      } catch (err) {
+        this.logs.add('error', 'telegram', 'Manual Telegram publication save failed', {
+          channelKey,
+          channelTitle: selected.channel.title,
+          messageId: sent.messageId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    } else {
+      this.logs.add(
+        'error',
+        'telegram',
+        'Manual Telegram response did not include publication identifiers',
+        {
+          channelKey,
+          channelTitle: selected.channel.title,
+        },
+      );
     }
 
     return {

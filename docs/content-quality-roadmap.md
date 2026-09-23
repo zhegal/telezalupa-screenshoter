@@ -63,14 +63,20 @@ This stage intentionally does not change worker or Telegram runtime behavior.
 - Worker and manual screenshots are filtered before Telegram delivery.
 - Tests cover lifecycle, duplicate upload rejection, cache invalidation, and worker filtering.
 
-### 4. Publication persistence and Telegram webhook — next
+### 4. Publication persistence and Telegram webhook — complete
 
-- Save successful publications with Telegram message IDs and frame hashes.
-- Add a secret-token-protected webhook endpoint.
-- Configure only the required Telegram update types.
-- Map automatic discussion forwards to their source publications.
+- Successful sends now persist Telegram chat/message IDs and frame hashes together with the channel
+  frame baseline in one database transaction.
+- The destination in `TELEGRAM_DEFAULT_CHAT_ID` is the publication channel; no separate channel
+  address or username setting is used.
+- Added a secret-token-protected webhook endpoint and authenticated status view at `/telegram`.
+- Startup setup configures only message, edited message, channel post, edited channel post, and
+  aggregate reaction-count updates when webhook environment values are present.
+- Persistent `update_id` receipts make webhook delivery idempotent and are retained for seven days.
+- Automatic discussion forwards are mapped to their source publications without a separately
+  configured discussion chat ID.
 
-### 5. Reactions and pin lifecycle
+### 5. Reactions and pin lifecycle — next
 
 - Add the editable reaction threshold setting.
 - Sum all anonymous reaction counts.
@@ -89,5 +95,5 @@ This stage intentionally does not change worker or Telegram runtime behavior.
 
 - Back up PostgreSQL and the managed data volume.
 - Apply migrations and deploy the tested build.
-- Register the webhook at `https://telezalupa-api.zhegal.com.ua/api/telegram/webhook`.
+- Register the webhook URL configured through `TELEGRAM_WEBHOOK_URL`.
 - Verify filtering, reactions, manual and automatic pins, comments, and a test ban.

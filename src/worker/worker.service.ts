@@ -10,6 +10,7 @@ import { FfmpegCaptureService } from '../capture/ffmpeg-capture.service.js';
 import { PlaylistSelectorService } from '../playlists/playlist-selector.service.js';
 import { DatabasePlaylistSelectorService } from '../playlists/database-playlist-selector.service.js';
 import { TelegramService } from '../telegram/telegram.service.js';
+import { TelegramPublicationService } from '../telegram/telegram-publication.service.js';
 import { WORKER_CONFIG, type WorkerConfig } from '../config/worker.config.js';
 import { PlaylistLoaderService } from '../playlists/playlist-loader.service.js';
 import { SchedulerService } from './scheduler.service.js';
@@ -57,6 +58,8 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject(FrameStateService) private readonly frameState: FrameStateService,
     @Inject(ForbiddenFrameReferenceService)
     private readonly forbiddenFrames: ForbiddenFrameReferenceService,
+    @Inject(TelegramPublicationService)
+    private readonly publications: TelegramPublicationService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -358,26 +361,41 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       messageId: sent.messageId,
     });
 
-    try {
-      await this.frameState.recordPublished({
-        channelKey,
-        channelId: channel.databaseId,
-        frameHash,
-      });
-    } catch (err) {
-      const error = err instanceof Error ? err.message : String(err);
-      this.workerState.markError(
-        `Published frame state save failed: ${error}`,
-        playlistUrl,
-        capturedChannel.url,
+    if (sent.chatId && sent.messageId !== undefined) {
+      try {
+        await this.publications.record({
+          channelKey,
+          channelId: channel.databaseId,
+          channelTitle: channel.title,
+          chatId: sent.chatId,
+          messageId: sent.messageId,
+          frameHash,
+          publishedAt: sent.publishedAt,
+        });
+      } catch (err) {
+        const error = err instanceof Error ? err.message : String(err);
+        this.workerState.markError(
+          `Telegram publication save failed: ${error}`,
+          playlistUrl,
+          capturedChannel.url,
+        );
+        this.logs.add('error', 'telegram', 'Telegram publication save failed', {
+          channelKey,
+          channelTitle: channel.title,
+          messageId: sent.messageId,
+          error,
+        });
+      }
+    } else {
+      this.logs.add(
+        'error',
+        'telegram',
+        'Telegram response did not include publication identifiers',
+        {
+          channelKey,
+          channelTitle: channel.title,
+        },
       );
-      this.logs.add('error', 'worker', 'Published frame state save failed', {
-        channelKey,
-        playlistUrl,
-        channelTitle: channel.title,
-        messageId: sent.messageId,
-        error,
-      });
     }
 
     return 'published';

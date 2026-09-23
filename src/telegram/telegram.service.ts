@@ -7,6 +7,7 @@ import type {
   SendPhotoResult,
   TelegramApiResponse,
   TelegramMessageResult,
+  TelegramWebhookInfo,
 } from './telegram.types.js';
 
 @Injectable()
@@ -47,9 +48,15 @@ export class TelegramService {
       );
 
       if (response.status === 200 && response.data?.ok) {
-        const messageId = response.data.result?.message_id;
+        const result = response.data.result;
+        const messageId = result?.message_id;
         this.logger.log(`Sent to TG${messageId ? `, message_id=${messageId}` : ''}`);
-        return { ok: true, messageId };
+        return {
+          ok: true,
+          messageId,
+          chatId: result?.chat?.id === undefined ? undefined : String(result.chat.id),
+          publishedAt: result?.date ? new Date(result.date * 1000) : undefined,
+        };
       }
 
       const errorMessage = `TG Status: ${response.status} Body: ${JSON.stringify(response.data).slice(0, 500)}`;
@@ -65,5 +72,45 @@ export class TelegramService {
       this.logs.add('error', 'telegram', 'Telegram send failed', { error: errorMessage });
       return { ok: false, errorMessage };
     }
+  }
+
+  async getWebhookInfo(): Promise<TelegramWebhookInfo> {
+    return this.callApi<TelegramWebhookInfo>('getWebhookInfo', {});
+  }
+
+  async setWebhook(input: {
+    url: string;
+    secretToken: string;
+    allowedUpdates: string[];
+  }): Promise<boolean> {
+    return this.callApi<boolean>('setWebhook', {
+      url: input.url,
+      secret_token: input.secretToken,
+      allowed_updates: input.allowedUpdates,
+      drop_pending_updates: false,
+    });
+  }
+
+  private async callApi<T>(method: string, body: Record<string, unknown>): Promise<T> {
+    if (!this.telegramConfig.botToken) {
+      throw new Error('Telegram bot token is not configured');
+    }
+
+    const response = await axios.post<TelegramApiResponse<T>>(
+      `https://api.telegram.org/bot${this.telegramConfig.botToken}/${method}`,
+      body,
+      {
+        timeout: this.telegramConfig.timeoutMs,
+        validateStatus: () => true,
+      },
+    );
+
+    if (response.status !== 200 || !response.data?.ok || response.data.result === undefined) {
+      throw new Error(
+        `Telegram ${method} failed: status=${response.status} ${response.data?.description || ''}`.trim(),
+      );
+    }
+
+    return response.data.result;
   }
 }
