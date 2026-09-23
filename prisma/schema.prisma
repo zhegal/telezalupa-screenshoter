@@ -11,6 +11,24 @@ enum UserRole {
   admin
 }
 
+enum TelegramPinStatus {
+  none
+  pending
+  pinned
+  error
+}
+
+enum TelegramPinSource {
+  automatic
+  manual
+}
+
+enum TelegramBanStatus {
+  pending
+  completed
+  error
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -27,13 +45,13 @@ model User {
 }
 
 model Session {
-  id           String   @id
-  userId       String?
-  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isBootstrap  Boolean  @default(false)
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isBootstrap Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId])
   @@index([expiresAt])
@@ -87,17 +105,19 @@ model Stream {
 }
 
 model Channel {
-  id                  String            @id @default(cuid())
-  title               String
-  description         String?
-  enabled             Boolean           @default(true)
-  defaultDelaySeconds Int?
-  defaultScale        String?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  playlistChannels    PlaylistChannel[]
-  channelStreams      ChannelStream[]
-  channelTimezones    ChannelTimezone[]
+  id                   String                @id @default(cuid())
+  title                String
+  description          String?
+  enabled              Boolean               @default(true)
+  defaultDelaySeconds  Int?
+  defaultScale         String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  playlistChannels     PlaylistChannel[]
+  channelStreams       ChannelStream[]
+  channelTimezones     ChannelTimezone[]
+  frameState           ChannelFrameState?
+  telegramPublications TelegramPublication[]
 
   @@index([enabled])
   @@index([title])
@@ -164,10 +184,10 @@ model TimezonePreset {
   channelTimezones  ChannelTimezone[]
   playlistTimezones PlaylistTimezone[]
 
+  @@unique([timezone, label])
   @@index([enabled])
   @@index([timezone])
   @@index([label])
-  @@unique([timezone, label])
   @@map("timezone_presets")
 }
 
@@ -210,6 +230,112 @@ model TelegramChat {
   @@index([isDefault])
   @@index([title])
   @@map("telegram_chats")
+}
+
+model ChannelFrameState {
+  id                String   @id @default(cuid())
+  channelKey        String   @unique
+  channelId         String?  @unique
+  channel           Channel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  lastPublishedHash String
+  lastPublishedAt   DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([lastPublishedAt])
+  @@map("channel_frame_states")
+}
+
+model ForbiddenFrameReference {
+  id            String   @id @default(cuid())
+  label         String
+  thumbnailHash String   @unique
+  previewPath   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([label])
+  @@map("forbidden_frame_references")
+}
+
+model TelegramPublication {
+  id                      String             @id @default(cuid())
+  channelKey              String
+  channelId               String?
+  channel                 Channel?           @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  chatId                  String
+  messageId               Int
+  frameHash               String
+  channelTitle            String
+  reactionCount           Int                @default(0)
+  pinStatus               TelegramPinStatus  @default(none)
+  pinSource               TelegramPinSource?
+  pinError                String?
+  pinnedAt                DateTime?
+  discussionChatId        String?
+  discussionRootMessageId Int?
+  publishedAt             DateTime           @default(now())
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  comments                TelegramComment[]
+  bans                    TelegramUserBan[]
+
+  @@unique([chatId, messageId])
+  @@unique([discussionChatId, discussionRootMessageId])
+  @@index([channelKey])
+  @@index([channelId])
+  @@index([pinStatus])
+  @@index([publishedAt])
+  @@map("telegram_publications")
+}
+
+model TelegramComment {
+  id                String              @id @default(cuid())
+  publicationId     String
+  publication       TelegramPublication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  discussionChatId  String
+  messageId         Int
+  telegramUserId    String?
+  authorUsername    String?
+  authorDisplayName String
+  text              String?
+  hasMedia          Boolean             @default(false)
+  telegramUrl       String
+  messageCreatedAt  DateTime
+  messageEditedAt   DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  ban               TelegramUserBan?
+
+  @@unique([discussionChatId, messageId])
+  @@index([publicationId])
+  @@index([telegramUserId])
+  @@index([messageCreatedAt])
+  @@map("telegram_comments")
+}
+
+model TelegramUserBan {
+  id                String              @id @default(cuid())
+  commentId         String              @unique
+  comment           TelegramComment     @relation(fields: [commentId], references: [id], onDelete: Restrict)
+  publicationId     String
+  publication       TelegramPublication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  discussionChatId  String
+  telegramUserId    String
+  authorUsername    String?
+  authorDisplayName String
+  note              String?
+  status            TelegramBanStatus   @default(pending)
+  errorMessage      String?
+  bannedAt          DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([publicationId])
+  @@index([telegramUserId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("telegram_user_bans")
 }
 
 model CaptionTemplate {

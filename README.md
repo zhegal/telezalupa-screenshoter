@@ -39,6 +39,8 @@ Implemented:
 - Runtime dashboard, worker status, logs, playlist view, and channel search.
 - Manual “send screenshot now” action for a playlist channel without changing the worker queue.
 - JSON Import Wizard with preview/apply flow.
+- Database foundation for frame deduplication, forbidden references, Telegram publications,
+  reactions, comments, and moderation bans.
 - Docker local and production compose files.
 
 Recently improved:
@@ -67,6 +69,7 @@ Still needs work:
 - Reduce old generic catalog/relation terminology in remaining internal screens.
 - Improve Telegram-specific visibility: last posts, message IDs, failed sends, and quick jump from a posted channel to its catalog entry.
 - Add tests for selector logic, availability logic, caption building, import preview, and database source loading.
+- Connect the content-quality data model to the worker and add the Telegram webhook workflow.
 
 ## Requirements
 
@@ -367,7 +370,23 @@ Current production assumption:
 - one default Telegram channel;
 - screenshots are posted there continuously.
 
-The database already contains Telegram chat/template entities for future expansion, but the UI should stay focused on the single-channel workflow until multi-chat publishing is actually needed.
+The product targets one public channel: `@telezalupa_monitor`, with one linked discussion group.
+
+The database contains persistence for:
+
+- the last successfully published frame hash per channel;
+- forbidden frame references;
+- Telegram publications and their pin state;
+- comments linked to publications;
+- moderation bans with an editable private note.
+
+The default automatic pin threshold is stored in `system_settings` under
+`telegram.pinReactionThreshold` and starts at `7`. The future settings UI must accept values of
+`1` or greater.
+
+The schema is ready for this workflow, but frame filtering and inbound Telegram webhook handling
+are not active yet. Implementation progress is tracked in
+[`docs/content-quality-roadmap.md`](docs/content-quality-roadmap.md).
 
 ## JSON Import Wizard
 
@@ -611,13 +630,24 @@ High-value tests:
 - provider URL template matching;
 - JSON Import Wizard preview/apply;
 - source switching.
+- deterministic `32x18` frame fingerprints;
+- consecutive duplicate filtering;
+- forbidden reference filtering;
+- Telegram webhook idempotency;
+- reaction threshold pinning;
+- comment-to-publication mapping;
+- moderation ban audit preservation.
 
 ## Known Product Decisions
 
 - Database source is now the primary direction.
 - JSON source stays as compatibility and fallback.
-- One Telegram bot and one default Telegram channel are enough for now.
-- Multi-chat publishing, comments/reactions analytics, and worker groups are future features, not current UX priorities.
+- One Telegram bot, `@telezalupa_monitor`, and its discussion group are enough for now.
+- Multi-chat publishing and worker groups are out of scope.
+- Consecutive duplicate and forbidden-reference filtering must not change the channel queue or its
+  existing priority behavior.
+- Comments, reaction-triggered pinning, manual pin tracking, and moderation are part of the active
+  product roadmap.
 - Streams should stay visually subordinate to channels.
 - Timezones and providers are important but secondary to playlist/channel maintenance.
 
