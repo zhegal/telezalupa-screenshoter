@@ -54,15 +54,16 @@ This stage intentionally does not change worker or Telegram runtime behavior.
 - Explicit worker outcomes and bounded immediate channel advancement prevent a busy loop.
 - Focused tests cover `A -> A`, `A -> B -> A`, send failure, and bounded filtering.
 
-### 3. Forbidden reference management — next
+### 3. Forbidden reference management — complete
 
-- Add authenticated CRUD and upload validation.
-- Store compact previews under the managed data volume.
-- Cache forbidden hashes in memory.
-- Add the admin page for upload, rename, preview, and delete.
-- Connect forbidden filtering to the worker.
+- Added authenticated CRUD with label, MIME, and 10 MB upload validation.
+- Compact WebP previews are stored under the managed data volume; originals are discarded.
+- Forbidden hashes are loaded into an in-memory set and updated after CRUD operations.
+- Added the admin page for upload, rename, preview, and delete.
+- Worker and manual screenshots are filtered before Telegram delivery.
+- Tests cover lifecycle, duplicate upload rejection, cache invalidation, and worker filtering.
 
-### 4. Publication persistence and Telegram webhook
+### 4. Publication persistence and Telegram webhook — next
 
 - Save successful publications with Telegram message IDs and frame hashes.
 - Add a secret-token-protected webhook endpoint.

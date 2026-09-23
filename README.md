@@ -43,6 +43,7 @@ Implemented:
   reactions, comments, and moderation bans.
 - Deterministic `32x18` RGB frame fingerprints and consecutive duplicate filtering for database and
   legacy JSON channel sources.
+- Forbidden frame reference upload, exact-match filtering, compact previews, and admin management.
 - Docker local and production compose files.
 
 Recently improved:
@@ -71,8 +72,7 @@ Still needs work:
 - Reduce old generic catalog/relation terminology in remaining internal screens.
 - Improve Telegram-specific visibility: last posts, message IDs, failed sends, and quick jump from a posted channel to its catalog entry.
 - Add tests for selector logic, availability logic, caption building, import preview, and database source loading.
-- Persist Telegram publications and add the inbound webhook workflow.
-- Add forbidden reference management and filtering.
+- Persist Telegram publications and process inbound Telegram updates.
 
 ## Requirements
 
@@ -390,14 +390,21 @@ while `A -> B -> A` remains valid. Filtered channels are advanced immediately wi
 to prevent a busy loop when every available channel is unchanged.
 
 Manual “send screenshot now” remains an explicit override: it sends the requested frame and then
-stores that frame as the channel's new comparison baseline.
+stores that frame as the channel's new comparison baseline. It does not override forbidden frame
+filtering.
+
+Forbidden references are managed at `/frame-references`. JPEG, PNG, and WebP uploads up to 10 MB
+are normalized with the same fingerprint pipeline used by the worker. Only a compact WebP preview
+and the hash are retained; original uploads and published screenshots are not duplicated on disk.
+Preview files default to `data/forbidden-frame-references`, which is already inside the managed
+Docker data volume. `FORBIDDEN_REFERENCES_DIR` can override this location.
 
 The default automatic pin threshold is stored in `system_settings` under
 `telegram.pinReactionThreshold` and starts at `7`. The future settings UI must accept values of
 `1` or greater.
 
-The schema is ready for this workflow, but frame filtering and inbound Telegram webhook handling
-are not active yet. Implementation progress is tracked in
+Frame filtering is active. Publication persistence and inbound Telegram webhook handling are the
+next implementation stage. Progress is tracked in
 [`docs/content-quality-roadmap.md`](docs/content-quality-roadmap.md).
 
 ## JSON Import Wizard
@@ -514,6 +521,18 @@ telegram-chats
 caption-templates
 ```
 
+Forbidden frame references:
+
+```txt
+GET    /api/frame-references
+POST   /api/frame-references
+PATCH  /api/frame-references/:id
+DELETE /api/frame-references/:id
+GET    /api/frame-references/:id/preview
+```
+
+Creation uses `multipart/form-data` fields `label` and `file`.
+
 Owned playlist/channel operations:
 
 ```txt
@@ -547,6 +566,7 @@ src/
   catalog/
   channels/
   config/
+  frames/
   logs/
   playlists/
   runtime/

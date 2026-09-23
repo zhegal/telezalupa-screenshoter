@@ -18,6 +18,7 @@ import { RuntimeLogService } from '../logs/runtime-log.service.js';
 import { SourceSettingsService } from '../settings/source-settings.service.js';
 import { FrameFingerprintService } from '../frames/frame-fingerprint.service.js';
 import { FrameStateService } from '../frames/frame-state.service.js';
+import { ForbiddenFrameReferenceService } from '../frames/forbidden-frame-reference.service.js';
 import type { Channel } from '../channels/channel.types.js';
 import type { ChannelSource } from '../settings/source-settings.types.js';
 import type { SelectedChannel } from '../playlists/playlist.types.js';
@@ -30,6 +31,7 @@ export interface WorkerRunResult {
 export type WorkerChannelOutcome =
   | 'published'
   | 'filtered_duplicate'
+  | 'filtered_forbidden'
   | 'capture_failed'
   | 'telegram_failed'
   | 'processing_failed';
@@ -53,6 +55,8 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject(SourceSettingsService) private readonly sourceSettings: SourceSettingsService,
     @Inject(FrameFingerprintService) private readonly frameFingerprint: FrameFingerprintService,
     @Inject(FrameStateService) private readonly frameState: FrameStateService,
+    @Inject(ForbiddenFrameReferenceService)
+    private readonly forbiddenFrames: ForbiddenFrameReferenceService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -155,6 +159,8 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private async runJsonCycleStep(): Promise<void> {
     const attemptedChannels = new Set<string>();
+    let duplicateFrames = 0;
+    let forbiddenFrames = 0;
 
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const selected = await this.playlistSelector.selectChannel();
@@ -173,14 +179,16 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       const selectedKey = this.getSelectedChannelKey(selected);
 
       if (attemptedChannels.has(selectedKey)) {
-        this.finishFilteredCycle(attemptedChannels.size);
+        this.finishFilteredCycle(attemptedChannels.size, duplicateFrames, forbiddenFrames);
         return;
       }
 
       attemptedChannels.add(selectedKey);
       const outcome = await this.processSelectedChannel(selected, 'json');
 
-      if (outcome === 'filtered_duplicate') {
+      if (outcome === 'filtered_duplicate' || outcome === 'filtered_forbidden') {
+        duplicateFrames += outcome === 'filtered_duplicate' ? 1 : 0;
+        forbiddenFrames += outcome === 'filtered_forbidden' ? 1 : 0;
         continue;
       }
 
@@ -188,13 +196,15 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       return;
     }
 
-    this.finishFilteredCycle(attemptedChannels.size);
+    this.finishFilteredCycle(attemptedChannels.size, duplicateFrames, forbiddenFrames);
   }
 
   private async runDatabaseCycleStep(): Promise<void> {
     const maxAttempts = 100;
     const attemptedChannels = new Set<string>();
     let captureFailures = 0;
+    let duplicateFrames = 0;
+    let forbiddenFrames = 0;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const selected = await this.databasePlaylistSelector.selectChannel();
@@ -210,7 +220,12 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       const selectedKey = this.getSelectedChannelKey(selected);
 
       if (attemptedChannels.has(selectedKey)) {
-        this.finishDatabaseAttempts(attemptedChannels.size, captureFailures);
+        this.finishDatabaseAttempts(
+          attemptedChannels.size,
+          captureFailures,
+          duplicateFrames,
+          forbiddenFrames,
+        );
         return;
       }
 
@@ -218,7 +233,9 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
 
       const outcome = await this.processSelectedChannel(selected, 'database');
 
-      if (outcome === 'filtered_duplicate') {
+      if (outcome === 'filtered_duplicate' || outcome === 'filtered_forbidden') {
+        duplicateFrames += outcome === 'filtered_duplicate' ? 1 : 0;
+        forbiddenFrames += outcome === 'filtered_forbidden' ? 1 : 0;
         continue;
       }
 
@@ -235,7 +252,12 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       return;
     }
 
-    this.finishDatabaseAttempts(attemptedChannels.size, captureFailures);
+    this.finishDatabaseAttempts(
+      attemptedChannels.size,
+      captureFailures,
+      duplicateFrames,
+      forbiddenFrames,
+    );
   }
 
   private async processSelectedChannel(
@@ -274,6 +296,16 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
 
     try {
       frameHash = await this.frameFingerprint.createHash(photoBuffer);
+
+      if (this.forbiddenFrames.isForbidden(frameHash)) {
+        this.logger.log(`Skipped forbidden frame: ${channel.title}`);
+        this.logs.add('info', 'worker', 'Skipped forbidden frame', {
+          channelKey,
+          playlistUrl,
+          channelTitle: channel.title,
+        });
+        return 'filtered_forbidden';
+      }
 
       if (await this.frameState.isConsecutiveDuplicate(channelKey, frameHash)) {
         this.logger.log(`Skipped consecutive duplicate: ${channel.title}`);
@@ -366,30 +398,38 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     );
   }
 
-  private finishFilteredCycle(attemptedChannels: number): void {
-    this.logger.log(
-      `All ${attemptedChannels} attempted channels were filtered as consecutive duplicates`,
-    );
-    this.logs.add(
-      'info',
-      'worker',
-      'All attempted channels were filtered as consecutive duplicates',
-      {
-        attemptedChannels,
-      },
-    );
+  private finishFilteredCycle(
+    attemptedChannels: number,
+    duplicateFrames: number,
+    forbiddenFrames: number,
+  ): void {
+    this.logger.log(`All ${attemptedChannels} attempted channels were filtered`);
+    this.logs.add('info', 'worker', 'All attempted channels were filtered', {
+      attemptedChannels,
+      duplicateFrames,
+      forbiddenFrames,
+    });
     this.scheduleNext(this.workerConfig.intervalMs);
   }
 
-  private finishDatabaseAttempts(attemptedChannels: number, captureFailures: number): void {
+  private finishDatabaseAttempts(
+    attemptedChannels: number,
+    captureFailures: number,
+    duplicateFrames: number,
+    forbiddenFrames: number,
+  ): void {
     const onlyFiltered = captureFailures === 0;
     const message = onlyFiltered
-      ? 'All attempted database channels were filtered as consecutive duplicates'
+      ? 'All attempted database channels were filtered'
       : 'Database channel attempts exhausted';
 
     if (onlyFiltered) {
       this.logger.log(message);
-      this.logs.add('info', 'worker', message, { attemptedChannels });
+      this.logs.add('info', 'worker', message, {
+        attemptedChannels,
+        duplicateFrames,
+        forbiddenFrames,
+      });
     } else {
       this.logger.warn(message);
       this.logs.add('warn', 'worker', message, { attemptedChannels, captureFailures });

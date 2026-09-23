@@ -14,6 +14,7 @@ import ProfileSettingsPage from '../pages/ProfileSettingsPage.vue';
 import SetupPage from '../pages/SetupPage.vue';
 import SettingsSourcesPage from '../pages/SettingsSourcesPage.vue';
 import WorkerPage from '../pages/WorkerPage.vue';
+import FrameReferencesPage from '../pages/FrameReferencesPage.vue';
 import { useAuthStore } from '../stores/auth.store';
 
 export const router = createRouter({
@@ -71,6 +72,14 @@ export const router = createRouter({
       path: '/channels',
       name: 'channels',
       component: ChannelsPage,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/frame-references',
+      name: 'frame-references',
+      component: FrameReferencesPage,
       meta: {
         requiresAuth: true,
       },

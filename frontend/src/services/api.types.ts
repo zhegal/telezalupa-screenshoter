@@ -232,6 +232,15 @@ export interface ManualScreenshotResult {
   errorMessage?: string;
 }
 
+export interface ForbiddenFrameReference {
+  id: string;
+  label: string;
+  thumbnailHash: string;
+  previewUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StreamTransformPreviewItem {
   streamId: string;
   directUrl: string | null;

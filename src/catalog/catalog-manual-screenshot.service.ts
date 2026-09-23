@@ -5,6 +5,7 @@ import type { Channel } from '../channels/channel.types.js';
 import { RuntimeLogService } from '../logs/runtime-log.service.js';
 import { FrameFingerprintService } from '../frames/frame-fingerprint.service.js';
 import { FrameStateService } from '../frames/frame-state.service.js';
+import { ForbiddenFrameReferenceService } from '../frames/forbidden-frame-reference.service.js';
 import { DatabasePlaylistSelectorService } from '../playlists/database-playlist-selector.service.js';
 import { TelegramService } from '../telegram/telegram.service.js';
 
@@ -27,6 +28,8 @@ export class CatalogManualScreenshotService {
     @Inject(RuntimeLogService) private readonly logs: RuntimeLogService,
     @Inject(FrameFingerprintService) private readonly frameFingerprint: FrameFingerprintService,
     @Inject(FrameStateService) private readonly frameState: FrameStateService,
+    @Inject(ForbiddenFrameReferenceService)
+    private readonly forbiddenFrames: ForbiddenFrameReferenceService,
   ) {}
 
   async sendPlaylistChannelNow(
@@ -58,6 +61,19 @@ export class CatalogManualScreenshotService {
 
     try {
       frameHash = await this.frameFingerprint.createHash(captured.photoBuffer);
+
+      if (this.forbiddenFrames.isForbidden(frameHash)) {
+        this.logs.add('info', 'worker', 'Manual screenshot matched forbidden frame', {
+          playlistUrl: selected.playlistUrl,
+          channelTitle: selected.channel.title,
+        });
+        return {
+          ok: false,
+          channelTitle: selected.channel.title,
+          streamUrl: captured.channel.url,
+          errorMessage: 'Frame matches a forbidden reference',
+        };
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       this.logs.add('error', 'worker', 'Manual frame fingerprint failed', {

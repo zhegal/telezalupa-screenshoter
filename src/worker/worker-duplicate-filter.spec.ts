@@ -17,7 +17,8 @@ function createFrameStateService(): FrameStateService {
   const rows = new Map<string, StoredFrameState>();
   const prisma = {
     channelFrameState: {
-      findUnique: async ({ where }: { where: { channelKey: string } }) => rows.get(where.channelKey) ?? null,
+      findUnique: async ({ where }: { where: { channelKey: string } }) =>
+        rows.get(where.channelKey) ?? null,
       upsert: async ({
         where,
         create,
@@ -72,7 +73,10 @@ function selectedChannel(): SelectedChannel {
   };
 }
 
-function createWorkerHarness(initialFrame: Buffer) {
+function createWorkerHarness(
+  initialFrame: Buffer,
+  isForbidden: (hash: string) => boolean = () => false,
+) {
   let capturedFrame = initialFrame;
   let telegramSucceeds = true;
   let sendCount = 0;
@@ -109,6 +113,7 @@ function createWorkerHarness(initialFrame: Buffer) {
     {} as never,
     new FrameFingerprintService(),
     frameState,
+    { isForbidden } as never,
   );
   const processSelected = (
     worker as unknown as {
@@ -157,6 +162,15 @@ test('does not record a frame when Telegram delivery fails', async () => {
   harness.setTelegramSucceeds(true);
   assert.equal(await harness.processSelected(), 'published');
   assert.equal(harness.getSendCount(), 2);
+});
+
+test('does not send a frame that matches a forbidden reference', async () => {
+  const forbiddenFrame = await frame('#000000');
+  const hash = await new FrameFingerprintService().createHash(forbiddenFrame);
+  const harness = createWorkerHarness(forbiddenFrame, (candidate) => candidate === hash);
+
+  assert.equal(await harness.processSelected(), 'filtered_forbidden');
+  assert.equal(harness.getSendCount(), 0);
 });
 
 test('stops immediate duplicate advancement after the channel queue repeats', async () => {
@@ -213,11 +227,10 @@ test('stops immediate duplicate advancement after the channel queue repeats', as
     {} as never,
     fingerprint,
     frameState,
+    { isForbidden: () => false } as never,
   );
 
-  await (
-    worker as unknown as { runDatabaseCycleStep(): Promise<void> }
-  ).runDatabaseCycleStep();
+  await (worker as unknown as { runDatabaseCycleStep(): Promise<void> }).runDatabaseCycleStep();
 
   assert.equal(selectionCount, 2);
   assert.equal(captureCount, 1);

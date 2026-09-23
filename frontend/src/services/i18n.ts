@@ -21,7 +21,8 @@ export const messages = {
     temporaryAdminHint:
       'Для первого входа используйте login admin и временный пароль TEMP_ADMIN_PASSWORD.',
     setupTitle: 'Первичная регистрация',
-    setupDescription: 'Создайте первый реальный профиль администратора. После этого временный admin отключится.',
+    setupDescription:
+      'Создайте первый реальный профиль администратора. После этого временный admin отключится.',
     createAdmin: 'Создать администратора',
     email: 'Email',
     username: 'Username',
@@ -35,6 +36,7 @@ export const messages = {
       telegram: 'Telegram',
       playlists: 'Плейлисты',
       channels: 'Поиск каналов',
+      frameReferences: 'Стоп-кадры',
       catalog: 'Справочники',
       import: 'Импорт',
       logs: 'Логи',
@@ -45,6 +47,7 @@ export const messages = {
       telegram: 'Один бот и один Telegram-канал публикаций.',
       playlists: 'Главное место управления плейлистами и каналами.',
       channels: 'Быстро найти канал из Telegram-поста и открыть редактирование.',
+      frameReferences: 'Запрещённые экраны и технические заглушки.',
       catalog: 'Вспомогательные справочники: провайдеры, таймзоны, шаблоны.',
       import: 'Импорт JSON-плейлистов в PostgreSQL catalog через preview.',
       logs: 'Последние runtime события worker, playlist, ffmpeg и Telegram.',
