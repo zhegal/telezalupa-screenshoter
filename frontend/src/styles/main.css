@@ -638,6 +638,10 @@ button {
   overflow-wrap: anywhere;
 }
 
+.telegram-settings-form {
+  max-width: 520px;
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;

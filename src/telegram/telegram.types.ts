@@ -40,6 +40,23 @@ export interface TelegramMessageUpdate {
   forward_origin?: TelegramForwardOriginChannel | { type: string };
   forward_from_message_id?: number;
   sender_chat?: TelegramChatRef;
+  pinned_message?: TelegramMessageUpdate;
+}
+
+export interface TelegramReactionCount {
+  type: {
+    type: string;
+    emoji?: string;
+    custom_emoji_id?: string;
+  };
+  total_count: number;
+}
+
+export interface TelegramMessageReactionCountUpdated {
+  chat: TelegramChatRef;
+  message_id: number;
+  date: number;
+  reactions: TelegramReactionCount[];
 }
 
 export interface TelegramUpdate {
@@ -48,7 +65,7 @@ export interface TelegramUpdate {
   edited_message?: TelegramMessageUpdate;
   channel_post?: TelegramMessageUpdate;
   edited_channel_post?: TelegramMessageUpdate;
-  message_reaction_count?: unknown;
+  message_reaction_count?: TelegramMessageReactionCountUpdated;
 }
 
 export interface TelegramWebhookInfo {

@@ -91,6 +91,21 @@ export class TelegramService {
     });
   }
 
+  async pinChatMessage(chatId: string, messageId: number): Promise<boolean> {
+    return this.callApi<boolean>('pinChatMessage', {
+      chat_id: chatId,
+      message_id: messageId,
+      disable_notification: true,
+    });
+  }
+
+  async deleteMessage(chatId: string, messageId: number): Promise<boolean> {
+    return this.callApi<boolean>('deleteMessage', {
+      chat_id: chatId,
+      message_id: messageId,
+    });
+  }
+
   private async callApi<T>(method: string, body: Record<string, unknown>): Promise<T> {
     if (!this.telegramConfig.botToken) {
       throw new Error('Telegram bot token is not configured');

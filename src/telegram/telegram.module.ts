@@ -7,19 +7,31 @@ import {
   TelegramWebhookStatusController,
 } from './telegram-webhook.controller.js';
 import { TelegramPublicationService } from './telegram-publication.service.js';
+import { TelegramSettingsController } from './telegram-settings.controller.js';
+import { TelegramSettingsService } from './telegram-settings.service.js';
 import { TelegramService } from './telegram.service.js';
 import { TelegramUpdateService } from './telegram-update.service.js';
 import { TelegramWebhookService } from './telegram-webhook.service.js';
 
 @Module({
   imports: [AuthModule, FramesModule, LogsModule],
-  controllers: [TelegramWebhookController, TelegramWebhookStatusController],
+  controllers: [
+    TelegramWebhookController,
+    TelegramWebhookStatusController,
+    TelegramSettingsController,
+  ],
   providers: [
     TelegramService,
     TelegramPublicationService,
     TelegramUpdateService,
     TelegramWebhookService,
+    TelegramSettingsService,
   ],
-  exports: [TelegramService, TelegramPublicationService, TelegramWebhookService],
+  exports: [
+    TelegramService,
+    TelegramPublicationService,
+    TelegramWebhookService,
+    TelegramSettingsService,
+  ],
 })
 export class TelegramModule {}

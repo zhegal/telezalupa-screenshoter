@@ -39,6 +39,8 @@ test('links an automatic discussion forward and ignores repeated delivery', asyn
         receivedMarks += 1;
       },
     } as never,
+    {} as never,
+    { add: () => undefined } as never,
   );
   const update: TelegramUpdate = {
     update_id: 100,

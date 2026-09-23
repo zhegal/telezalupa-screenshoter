@@ -47,6 +47,7 @@ Implemented:
 - Transactional persistence of successful Telegram publications and their frame baselines.
 - Secret-token-protected Telegram webhook with idempotent update receipts and automatic discussion
   forward mapping.
+- Opt-in reaction-based pinning, manual pin tracking, and pin service-message cleanup.
 - Docker local and production compose files.
 
 Recently improved:
@@ -75,7 +76,7 @@ Still needs work:
 - Reduce old generic catalog/relation terminology in remaining internal screens.
 - Improve Telegram-specific visibility: last posts, message IDs, failed sends, and quick jump from a posted channel to its catalog entry.
 - Add tests for selector logic, availability logic, caption building, import preview, and database source loading.
-- Process reactions, pin lifecycle, comments, and moderation actions from Telegram updates.
+- Add the comment inbox and moderation actions for Telegram discussion updates.
 
 ## Requirements
 
@@ -411,9 +412,14 @@ and the hash are retained; original uploads and published screenshots are not du
 Preview files default to `data/forbidden-frame-references`, which is already inside the managed
 Docker data volume. `FORBIDDEN_REFERENCES_DIR` can override this location.
 
-The default automatic pin threshold is stored in `system_settings` under
-`telegram.pinReactionThreshold` and starts at `7`. The future settings UI must accept values of
-`1` or greater.
+Reaction-based pinning is configured at `/telegram`. It is disabled by default and must be enabled
+manually in the admin panel. Its threshold is stored under `telegram.pinReactionThreshold`, starts
+at `7`, and accepts integers of `1` or greater. The webhook processor sums every reaction type
+reported by Telegram. Once a publication is pinned, later reaction changes never cause automatic
+unpinning or another automatic pin attempt.
+
+Manual and automatic pins are recorded with their source. Telegram pin service messages are
+deleted immediately when their webhook update arrives.
 
 Frame filtering, publication persistence, and inbound Telegram webhook handling are active.
 Successful sends store the Telegram chat/message IDs and the frame baseline in one database
@@ -512,6 +518,14 @@ PATCH  /api/settings/sources/active
 GET    /api/settings/sources/json-file
 PUT    /api/settings/sources/json-file
 DELETE /api/settings/sources/json-file
+```
+
+Telegram management:
+
+```txt
+GET   /api/telegram/webhook/status
+GET   /api/telegram/settings
+PATCH /api/telegram/settings
 ```
 
 Catalog CRUD:
@@ -694,8 +708,8 @@ High-value tests:
 - Multi-chat publishing and worker groups are out of scope.
 - Consecutive duplicate and forbidden-reference filtering must not change the channel queue or its
   existing priority behavior.
-- Comments, reaction-triggered pinning, manual pin tracking, and moderation are part of the active
-  product roadmap.
+- Reaction-triggered pinning and manual pin tracking are active. Comments and moderation remain on
+  the product roadmap.
 - Streams should stay visually subordinate to channels.
 - Timezones and providers are important but secondary to playlist/channel maintenance.
 

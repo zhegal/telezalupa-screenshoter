@@ -258,6 +258,11 @@ export interface TelegramWebhookStatus {
   error: string | null;
 }
 
+export interface TelegramAutomationSettings {
+  autoPinEnabled: boolean;
+  reactionThreshold: number;
+}
+
 export interface StreamTransformPreviewItem {
   streamId: string;
   directUrl: string | null;

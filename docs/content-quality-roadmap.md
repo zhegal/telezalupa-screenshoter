@@ -14,6 +14,8 @@ engagement. Each stage is implemented, documented, verified, and committed separ
 - A forbidden or consecutive duplicate frame moves processing to the next channel immediately.
 - Only a successful Telegram publication updates the channel's last-published hash.
 - All reaction types contribute to the pin threshold.
+- Reaction-based automatic pinning is disabled by default and can only be enabled explicitly from
+  the admin panel.
 - The default pin threshold is `7`; configured values must be integers of at least `1`.
 - A publication is never automatically unpinned after it has been pinned.
 - Pin service messages are deleted for both automatic and manual pins.
@@ -76,15 +78,22 @@ This stage intentionally does not change worker or Telegram runtime behavior.
 - Automatic discussion forwards are mapped to their source publications without a separately
   configured discussion chat ID.
 
-### 5. Reactions and pin lifecycle — next
+### 5. Reactions and pin lifecycle — complete
 
-- Add the editable reaction threshold setting.
-- Sum all anonymous reaction counts.
-- Atomically claim automatic pin operations.
-- Track manual pins and ignore later reaction changes for pinned publications.
-- Delete pin service messages.
+- Added `/telegram` controls for the opt-in `telegram.autoPinEnabled` setting and an editable
+  reaction threshold of at least `1`.
+- Automatic pinning defaults to disabled; the initial threshold remains `7` until an administrator
+  changes it.
+- Aggregate updates sum all reaction types and store their absolute current count.
+- Eligible publications are atomically claimed before calling `pinChatMessage`, preventing
+  concurrent webhook updates from triggering duplicate pin calls.
+- Successful, failed, automatic, and manual pin states are retained. Pinned publications ignore
+  all later reaction changes and are never automatically unpinned.
+- Pin service messages are deleted for both automatic and manual pins.
+- Focused tests cover disabled-by-default behavior, summed thresholds, single pin execution,
+  post-pin reaction changes, manual pin tracking, and settings validation.
 
-### 6. Comment inbox and moderation
+### 6. Comment inbox and moderation — next
 
 - Persist new and edited comments without downloading media.
 - Add a simple newest-first comment view with Telegram links.

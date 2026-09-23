@@ -3,6 +3,49 @@
     <section class="panel wide-panel">
       <div class="panel-header">
         <div>
+          <p class="eyebrow">Автоматизация</p>
+          <h2>Закрепление по реакциям</h2>
+          <p class="page-description">
+            Функция выключена по умолчанию и работает только после ручного включения здесь.
+          </p>
+        </div>
+        <span class="pill" :class="settings.autoPinEnabled ? 'level-info' : 'level-warn'">
+          {{ settings.autoPinEnabled ? 'включено' : 'выключено' }}
+        </span>
+      </div>
+
+      <form class="catalog-form telegram-settings-form" @submit.prevent="saveSettings">
+        <label class="toggle-line status-toggle">
+          <input v-model="settings.autoPinEnabled" type="checkbox" />
+          <span>Автоматически закреплять публикации</span>
+        </label>
+        <label>
+          Количество реакций для закрепления
+          <input
+            v-model.number="settings.reactionThreshold"
+            type="number"
+            min="1"
+            step="1"
+            required
+          />
+        </label>
+        <p class="form-section-description">
+          Учитывается сумма всех типов реакций. Уже закреплённая публикация больше автоматически не
+          изменяется.
+        </p>
+        <div class="control-row">
+          <button class="action-button" type="submit" :disabled="saving || loading">
+            {{ saving ? 'Сохранение…' : 'Сохранить' }}
+          </button>
+          <span v-if="message" class="bulk-stats">{{ message }}</span>
+        </div>
+      </form>
+      <p v-if="error" class="form-error">{{ error }}</p>
+    </section>
+
+    <section class="panel wide-panel">
+      <div class="panel-header">
+        <div>
           <p class="eyebrow">Telegram Bot API</p>
           <h2>Webhook</h2>
           <p class="page-description">
@@ -13,8 +56,6 @@
           Обновить
         </button>
       </div>
-
-      <p v-if="error" class="form-error">{{ error }}</p>
 
       <dl class="meta-grid telegram-webhook-grid">
         <div>
@@ -58,10 +99,22 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import AdminLayout from '../layouts/AdminLayout.vue';
-import { getTelegramWebhookStatus, type TelegramWebhookStatus } from '../services/api';
+import {
+  getTelegramAutomationSettings,
+  getTelegramWebhookStatus,
+  updateTelegramAutomationSettings,
+  type TelegramAutomationSettings,
+  type TelegramWebhookStatus,
+} from '../services/api';
 
 const status = ref<TelegramWebhookStatus | null>(null);
+const settings = ref<TelegramAutomationSettings>({
+  autoPinEnabled: false,
+  reactionThreshold: 7,
+});
 const loading = ref(false);
+const saving = ref(false);
+const message = ref('');
 const error = ref('');
 
 onMounted(() => {
@@ -73,11 +126,33 @@ async function load() {
   error.value = '';
 
   try {
-    status.value = await getTelegramWebhookStatus();
+    const [webhookStatus, automationSettings] = await Promise.all([
+      getTelegramWebhookStatus(),
+      getTelegramAutomationSettings(),
+    ]);
+    status.value = webhookStatus;
+    settings.value = automationSettings;
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
     loading.value = false;
+  }
+}
+
+async function saveSettings() {
+  saving.value = true;
+  error.value = '';
+  message.value = '';
+
+  try {
+    settings.value = await updateTelegramAutomationSettings(settings.value);
+    message.value = settings.value.autoPinEnabled
+      ? `Автозакрепление включено: ${settings.value.reactionThreshold} реакций.`
+      : 'Автозакрепление выключено.';
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    saving.value = false;
   }
 }
 
