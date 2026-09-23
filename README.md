@@ -736,3 +736,10 @@ Production data:
 
 - PostgreSQL data: `postgres_data`;
 - managed JSON source/backups: `screenshoter_data`.
+
+The latest rollout deployed commit `f48e0c8` with all Prisma migrations applied. Pre-deployment
+database, data-volume, and environment backups are stored under the ignored `backups/` directory
+on the server and verified with SHA-256 checksums. The health endpoint, protected API behavior,
+Telegram webhook registration, publication persistence, and discussion-forward mapping were
+verified after deployment. Interactive acceptance checks for reactions, pins, comments, and a test
+ban remain intentionally manual.

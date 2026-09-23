@@ -108,9 +108,16 @@ This stage intentionally does not change worker or Telegram runtime behavior.
 - Focused tests cover new comments, edits, nested replies, media metadata, deep links, successful
   bans, private notes, and sender-chat restrictions.
 
-### 7. Production rollout — next
+### 7. Production rollout — deployed, interactive verification pending
 
-- Back up PostgreSQL and the managed data volume.
-- Apply migrations and deploy the tested build.
-- Register the webhook URL configured through `TELEGRAM_WEBHOOK_URL`.
-- Verify filtering, reactions, manual and automatic pins, comments, and a test ban.
+- Created checksum-verified backups of PostgreSQL, the managed data volume, and the previous
+  production environment file before changing the running service.
+- Deployed commit `f48e0c8`; all seven Prisma migrations are applied and PostgreSQL remained healthy
+  throughout the application-container replacement.
+- Added the webhook URL and a generated secret only to the protected production `.env` file.
+- Telegram reports the expected webhook configuration, zero pending updates, and no last error.
+- Verified the public health endpoint, frontend routes, authentication guards, invalid-secret
+  rejection, successful publication persistence, frame-state persistence, and discussion-forward
+  mapping.
+- Reaction, manual-pin, comment-edit, and test-ban acceptance checks still require deliberate user
+  actions in Telegram and the authenticated admin panel.
