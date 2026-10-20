@@ -212,6 +212,10 @@ The existing `telezalupa-screenshoter_postgres_data` and
 causes deployment to fail instead of silently starting with an empty database.
 The current COOKIE_SECURE override is retained during this deployment migration.
 
+Production resource ceilings: application 1024 MiB RAM plus up to 256 MiB swap,
+2 CPUs and 512 tasks; PostgreSQL 512 MiB RAM plus up to 128 MiB swap, 1 CPU
+and 256 tasks. These ceilings do not reserve that amount of memory.
+
 The running release is locked by immutable image ID; recreating it does not deploy
 whatever happens to be checked out in Git. For an application update, choose and
 review a source commit, back up the database and data, build a separately tagged

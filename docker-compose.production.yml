@@ -2,6 +2,11 @@ name: telezalupa-screenshoter
 
 services:
   screenshoter:
+    mem_limit: 1024m
+    memswap_limit: 1280m
+    cpus: 2
+    cpu_shares: 1024
+    pids_limit: 512
     image: ${SCREENSHOTER_IMAGE:?Set SCREENSHOTER_IMAGE in deployment.env}
     pull_policy: never
     container_name: tv-screenshoter
@@ -40,6 +45,11 @@ services:
       driver: "none"
 
   postgres:
+    mem_limit: 512m
+    memswap_limit: 640m
+    cpus: 1
+    cpu_shares: 1024
+    pids_limit: 256
     image: ${POSTGRES_IMAGE:?Set POSTGRES_IMAGE in deployment.env}
     pull_policy: never
     container_name: tv-screenshoter-postgres
