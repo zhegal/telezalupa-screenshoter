@@ -1,6 +1,9 @@
+name: telezalupa-screenshoter
+
 services:
   screenshoter:
-    build: .
+    image: ${SCREENSHOTER_IMAGE:?Set SCREENSHOTER_IMAGE in deployment.env}
+    pull_policy: never
     container_name: tv-screenshoter
     restart: unless-stopped
     depends_on:
@@ -19,18 +22,26 @@ services:
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       TEMP_ADMIN_PASSWORD: ${TEMP_ADMIN_PASSWORD:-}
-    expose:
-      - "3000"
+      COOKIE_SECURE: "false"
+    ports:
+      - "127.0.0.1:${PORT:-3000}:${PORT:-3000}"
     volumes:
       - screenshoter_data:/app/data
     networks:
-      - internal
+      - default
       - proxy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get({host:'127.0.0.1',port:process.env.PORT||3000,path:'/api/health'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 45s
+      retries: 6
     logging:
       driver: "none"
 
   postgres:
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:?Set POSTGRES_IMAGE in deployment.env}
+    pull_policy: never
     container_name: tv-screenshoter-postgres
     restart: unless-stopped
     environment:
@@ -44,15 +55,25 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    networks:
-      - internal
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
-  internal:
-    internal: true
+  default:
+    external: true
+    name: telezalupa-screenshoter_default
   proxy:
     external: true
+    name: proxy
 
 volumes:
   postgres_data:
+    external: true
+    name: telezalupa-screenshoter_postgres_data
   screenshoter_data:
+    external: true
+    name: telezalupa-screenshoter_screenshoter_data

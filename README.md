@@ -191,19 +191,40 @@ Local compose starts:
 
 It publishes app port `3000` only on `127.0.0.1` for local development; the port is not exposed on public host interfaces. PostgreSQL is internal to Docker and uses the `postgres_data` volume. Managed JSON source files and backups use the `screenshoter_data` volume mounted at `/app/data`.
 
-Production compose:
+Production deployment on the VPS:
 
 ```bash
-docker compose -f docker-compose.production.yml up -d --build
+./deploy.sh
+# To verify a complete container replacement:
+./deploy.sh --force-recreate
 ```
 
-Production is intended for VPS usage behind Nginx Proxy Manager:
+`deploy.sh` selects `docker-compose.production.yml` and combines the secret `.env`
+with the non-secret, versioned image lock `deployment.env`. It validates that all
+images, networks and volumes already exist, never builds or pulls implicitly, and
+waits for PostgreSQL and `/api/health` to become healthy.
 
-- backend port is not published with `ports`;
-- backend uses `expose: "3000"`;
-- `screenshoter` is attached to external Docker network `proxy`;
-- PostgreSQL is attached only to an internal network;
-- Nginx Proxy Manager should reach the app as `screenshoter:3000` inside the `proxy` network.
+Production explicitly declares the existing `telezalupa-screenshoter_default`
+database network and the external `proxy` network. NPM reaches the app as
+`tv-screenshoter:3000`. The diagnostic port remains bound only to `127.0.0.1`.
+The existing `telezalupa-screenshoter_postgres_data` and
+`telezalupa-screenshoter_screenshoter_data` volumes are external: missing data
+causes deployment to fail instead of silently starting with an empty database.
+The current COOKIE_SECURE override is retained during this deployment migration.
+
+The running release is locked by immutable image ID; recreating it does not deploy
+whatever happens to be checked out in Git. For an application update, choose and
+review a source commit, back up the database and data, build a separately tagged
+image with `docker build -t local-release/screenshoter:<release> .`, record its
+`docker image inspect --format '{{.Id}}'` result in `deployment.env`, and run
+`./deploy.sh`. Keep the previous lock, image, `.env` and data backup for rollback.
+`start:prod` applies Prisma migrations, so a release with schema migrations may
+require restoring the matching database backup when rolling back.
+
+On a replacement host, restore the image with `docker load`, restore `.env` and
+both named volumes, and create the two external networks before deployment.
+Initial empty volumes must be created deliberately; never run `down -v` to update.
+PostgreSQL upgrades also require an explicit digest change and database backup.
 
 ## Source Modes
 
@@ -724,18 +745,10 @@ Remaining high-value tests:
 
 ## Deployment Notes
 
-For VPS deployment behind Nginx Proxy Manager:
-
-- use `docker-compose.production.yml`;
-- ensure external Docker network `proxy` exists;
-- attach Nginx Proxy Manager to the same `proxy` network;
-- configure proxy host to `screenshoter:3000`;
-- do not publish backend or PostgreSQL ports directly to the host.
-
-Production data:
-
-- PostgreSQL data: `postgres_data`;
-- managed JSON source/backups: `screenshoter_data`.
+For VPS deployment behind Nginx Proxy Manager, use `./deploy.sh` as described in
+Docker above. The production Compose file is authoritative for image versions,
+networks, volumes, health checks, restart policy and logging. Secret values remain
+in the ignored `.env` file. Do not run the development Compose file on this VPS.
 
 The latest rollout deployed commit `f48e0c8` with all Prisma migrations applied. Pre-deployment
 database, data-volume, and environment backups are stored under the ignored `backups/` directory
