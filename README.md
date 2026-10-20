@@ -189,7 +189,7 @@ Local compose starts:
 - `screenshoter`
 - `postgres`
 
-It publishes app port `3000` to the host for development. PostgreSQL is internal to Docker and uses the `postgres_data` volume. Managed JSON source files and backups use the `screenshoter_data` volume mounted at `/app/data`.
+It publishes app port `3000` only on `127.0.0.1` for local development; the port is not exposed on public host interfaces. PostgreSQL is internal to Docker and uses the `postgres_data` volume. Managed JSON source files and backups use the `screenshoter_data` volume mounted at `/app/data`.
 
 Production compose:
 

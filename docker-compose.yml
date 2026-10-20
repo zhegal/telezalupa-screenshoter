@@ -21,7 +21,7 @@ services:
       TEMP_ADMIN_PASSWORD: ${TEMP_ADMIN_PASSWORD:-}
       COOKIE_SECURE: "false"
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "127.0.0.1:${PORT:-3000}:${PORT:-3000}"
     volumes:
       - screenshoter_data:/app/data
     logging:
